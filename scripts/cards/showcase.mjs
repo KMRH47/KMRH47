@@ -81,17 +81,9 @@ export function kcdShowcase({ henry, aim }, doc) {
   doc
     .wrap("regular", "An M4A1 carbine for Kingdom Come: Deliverance II, and the Blender toolchain I built to make it.", 19, KCD.column - LEFT)
     .forEach((line, index) => parts.push(doc.text("regular", line, 19, LEFT, KCD.top + 180 + index * 27, DARK.secondary)));
-  const progress = [
-    ["aims and fires in game", true],
-    ["holster, back and idle poses", true],
-    ["hand grips", false],
-  ];
-  progress.forEach(([text, done], index) => {
+  ["fully automatic", "fires 5.56 cartridges", "a unique weapon"].forEach((text, index) => {
     const y = KCD.top + 318 + index * 34;
-    const dot = done
-      ? `<circle cx="${LEFT + 7}" cy="${y - 6}" r="6" fill="${DARK.green}"/>`
-      : `<circle cx="${LEFT + 7}" cy="${y - 6}" r="5.2" fill="none" stroke="${DARK.orange}" stroke-width="2"/>`;
-    parts.push(dot + doc.text("medium", done ? text : `${text}, in progress`, 17, LEFT + 24, y, done ? DARK.secondary : DARK.orange));
+    parts.push(`<circle cx="${LEFT + 7}" cy="${y - 6}" r="6" fill="${DARK.orange}"/>` + doc.text("medium", text, 17, LEFT + 24, y, DARK.ink));
   });
-  return svg(WIDTH, KCD.height, "kcd2-m4a1: an M4A1 carbine mod for Kingdom Come: Deliverance II, in progress. Henry aiming the carbine, and the view down its sights.", doc, parts.join(""), defs);
+  return svg(WIDTH, KCD.height, "kcd2-m4a1: a fully automatic M4A1 carbine for Kingdom Come: Deliverance II that fires 5.56 cartridges. Henry aiming it, and the view down its sights.", doc, parts.join(""), defs);
 }
