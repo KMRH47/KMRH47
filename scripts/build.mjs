@@ -49,7 +49,7 @@ const facts = {
 const files = {
   "banner.svg": bannerCard(facts, type.document()),
   "qol.svg": qolShowcase(facts, type.document()),
-  "kcd2.svg": kcdShowcase(await shot("kcd2-ingame"), type.document()),
+  "kcd2.svg": kcdShowcase({ henry: await shot("kcd2-henry"), aim: await shot("kcd2-ingame") }, type.document()),
   "plugins.svg": pluginsCard(facts, type.document()),
   "screens.svg": screensCard(facts, type.document()),
   "stack.svg": stackCard(STACK, type.document()),

@@ -4,7 +4,7 @@ const WIDTH = 1200;
 const LEFT = 56;
 const COLUMN = 236;
 const WINDOW = { x: 324, y: 40, width: 840, height: 664 };
-const KCD = { height: 600, column: 330, top: 74 };
+const KCD = { height: 600, column: 330, top: 74, split: [830, 770], gap: 12, piece: 500 };
 const SHADOW = `<filter id="lift" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000" flood-opacity="0.55"/></filter>`;
 
 function timeline(frames) {
@@ -60,12 +60,21 @@ export function qolShowcase({ plugins, frames }, doc) {
   return svg(WIDTH, height, `qol, my main project: the real launcher searching apps, then files`, doc, parts.join(""), frame.defs + SHADOW);
 }
 
-export function kcdShowcase(image, doc) {
+export function kcdShowcase({ henry, aim }, doc) {
+  const [top, bottom] = KCD.split;
+  const frame = panel("kcd", WIDTH, KCD.height, [
+    { x: 40, y: 40, r: 340, color: DARK.orange, opacity: 0.22 },
+    { x: 200, y: 600, r: 300, color: DARK.amber, opacity: 0.12 },
+  ]);
   const defs =
-    `<clipPath id="kcd-clip"><rect width="${WIDTH}" height="${KCD.height}" rx="24"/></clipPath>` +
-    `<linearGradient id="kcd-veil" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${DARK.base}" stop-opacity="0.92"/><stop offset="0.22" stop-color="${DARK.base}" stop-opacity="0.78"/><stop offset="0.4" stop-color="${DARK.base}" stop-opacity="0"/></linearGradient>`;
+    frame.defs +
+    `<clipPath id="kcd-left"><path d="M${KCD.column + 50} 0H${top}L${bottom} ${KCD.height}H${KCD.column + 50}Z"/></clipPath>` +
+    `<clipPath id="kcd-right"><path d="M${top + KCD.gap} 0H${WIDTH - 24}a24 24 0 0 1 24 24V${KCD.height - 24}a24 24 0 0 1-24 24H${bottom + KCD.gap}Z"/></clipPath>`;
   const parts = [
-    `<g clip-path="url(#kcd-clip)"><image href="${image}" width="${WIDTH}" height="${KCD.height}"/><rect width="${WIDTH}" height="${KCD.height}" fill="url(#kcd-veil)"/></g>`,
+    frame.body,
+    `<image href="${henry}" x="${KCD.column + 50}" y="0" width="${KCD.piece}" height="${KCD.height}" clip-path="url(#kcd-left)"/>`,
+    `<image href="${aim}" x="${WIDTH - KCD.piece}" y="0" width="${KCD.piece}" height="${KCD.height}" clip-path="url(#kcd-right)"/>`,
+    `<path d="M${top + KCD.gap / 2} 0L${bottom + KCD.gap / 2} ${KCD.height}" stroke="${DARK.orange}" stroke-width="3"/>`,
   ];
   parts.push(label(doc, "on the side", LEFT, KCD.top + 76, DARK.orange));
   parts.push(doc.text("display", "kcd2-m4a1", 56, LEFT - 2, KCD.top + 136, DARK.ink));
@@ -84,5 +93,5 @@ export function kcdShowcase(image, doc) {
       : `<circle cx="${LEFT + 7}" cy="${y - 6}" r="5.2" fill="none" stroke="${DARK.orange}" stroke-width="2"/>`;
     parts.push(dot + doc.text("medium", done ? text : `${text}, in progress`, 17, LEFT + 24, y, done ? DARK.secondary : DARK.orange));
   });
-  return svg(WIDTH, KCD.height, "kcd2-m4a1: an M4A1 carbine mod for Kingdom Come: Deliverance II, in progress, aimed in game.", doc, parts.join(""), defs);
+  return svg(WIDTH, KCD.height, "kcd2-m4a1: an M4A1 carbine mod for Kingdom Come: Deliverance II, in progress. Henry aiming the carbine, and the view down its sights.", doc, parts.join(""), defs);
 }
