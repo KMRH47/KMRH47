@@ -13,13 +13,31 @@ function markBodies(source) {
   );
 }
 
+function tables(toml) {
+  return toml.split(/^(?=\[)/m).map((block) => ({
+    header: block.match(/^\[([^\]]+)\]/)?.[1] ?? "",
+    field(key) {
+      const match = block.match(new RegExp(`^${key}\\s*=\\s*(".*"|\\[.*\\])\\s*$`, "m"));
+      return match ? JSON.parse(match[1]) : null;
+    },
+  }));
+}
+
 function pluginSection(toml) {
-  const section = toml.split(/^\[(?!plugin\])/m)[0].split(/^\[plugin\]$/m)[1] ?? "";
-  const field = (key) => {
-    const match = section.match(new RegExp(`^${key}\\s*=\\s*(".*")\\s*$`, "m"));
-    return match ? JSON.parse(match[1]) : null;
+  const blocks = tables(toml);
+  const plugin = blocks.find((block) => block.header === "plugin");
+  const actions = blocks
+    .filter((block) => block.header.startsWith("action."))
+    .map((block) => block.field("label"))
+    .filter((label) => label && !label.startsWith("Settings"));
+  return {
+    name: plugin?.field("name"),
+    icon: plugin?.field("icon"),
+    description: plugin?.field("description"),
+    version: plugin?.field("version"),
+    platforms: plugin?.field("platforms"),
+    actions,
   };
-  return { name: field("name"), icon: field("icon"), description: field("description") };
 }
 
 export async function readQol(root) {
@@ -30,8 +48,8 @@ export async function readQol(root) {
     if (!entry.isDirectory() || entry.name === "template") continue;
     const file = path.join(root, "plugins", entry.name, "plugin.toml");
     const plugin = pluginSection(await readFile(file, "utf8"));
-    if (!plugin.name || !plugin.description || !marks.has(plugin.icon)) {
-      throw new Error(`${file}: missing name, description or a known icon`);
+    if (!plugin.name || !plugin.description || !plugin.version || !plugin.platforms || !marks.has(plugin.icon)) {
+      throw new Error(`${file}: missing name, description, version, platforms or a known icon`);
     }
     plugins.push({ ...plugin, mark: marks.get(plugin.icon) });
   }

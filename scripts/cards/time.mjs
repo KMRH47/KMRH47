@@ -1,5 +1,5 @@
 import { round } from "../type.mjs";
-import { DARK, panel, svg } from "../svg.mjs";
+import { DARK, heading, panel, svg } from "../svg.mjs";
 
 const WIDTH = 1200;
 const PAD = 48;
@@ -17,7 +17,7 @@ export function timeCard(stats, doc) {
   if (stats.rest.repos > 0) {
     rows.push({ label: `${stats.rest.repos} other repos`, commits: stats.rest.commits, fill: DARK.faint });
   }
-  const top = 262;
+  const top = 292;
   const footnote = top + rows.length * ROW + 30;
   const height = footnote + 40;
   const frame = panel("time", WIDTH, height, [
@@ -29,8 +29,7 @@ export function timeCard(stats, doc) {
   const defs = frame.defs + `<clipPath id="bars"><rect x="${barX}" y="0" width="${WIDTH - barX}" height="${height}"/></clipPath>`;
 
   const parts = [frame.body];
-  parts.push(doc.text("monoMedium", "PAST 12 MONTHS", 15, PAD, 56, DARK.amber, { tracking: 3 }));
-  parts.push(doc.text("display", "Where my time goes", 34, PAD, 92, DARK.ink));
+  parts.push(heading(doc, "where my time goes", "the past twelve months, by repository.", PAD, 80));
   const lead = stats.top[0];
   const figures = [
     [number(stats.total), "public commits"],
@@ -40,8 +39,8 @@ export function timeCard(stats, doc) {
   const figureWidth = (WIDTH - 2 * PAD) / figures.length;
   figures.forEach(([value, label], index) => {
     const x = PAD + index * figureWidth;
-    parts.push(doc.text("display", value, 68, x - 2, 182, DARK.ink));
-    parts.push(doc.text("regular", label, 18, x, 214, DARK.secondary));
+    parts.push(doc.text("display", value, 68, x - 2, 210, DARK.ink));
+    parts.push(doc.text("regular", label, 18, x, 242, DARK.secondary));
   });
 
   parts.push(`<g clip-path="url(#bars)">`);

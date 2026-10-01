@@ -1,7 +1,6 @@
 const API = "https://api.github.com";
 const WINDOW_DAYS = 91;
 const DAY_MS = 86_400_000;
-const LEVELS = { NONE: 0, FIRST_QUARTILE: 1, SECOND_QUARTILE: 2, THIRD_QUARTILE: 3, FOURTH_QUARTILE: 4 };
 
 async function request(token, url, init = {}) {
   const response = await fetch(url, {
@@ -49,29 +48,6 @@ export async function publicCommitDays(token, login, from, to) {
     }
   }
   return days;
-}
-
-const CALENDAR = `
-  query ($login: String!) {
-    user(login: $login) {
-      contributionsCollection {
-        contributionCalendar {
-          totalContributions
-          weeks { contributionDays { weekday contributionLevel } }
-        }
-      }
-    }
-  }`;
-
-export async function contributionCalendar(token, login) {
-  const data = await graphql(token, CALENDAR, { login });
-  const calendar = data.user.contributionsCollection.contributionCalendar;
-  return {
-    total: calendar.totalContributions,
-    weeks: calendar.weeks.map((week) =>
-      week.contributionDays.map((day) => ({ weekday: day.weekday, level: LEVELS[day.contributionLevel] })),
-    ),
-  };
 }
 
 export async function stars(token, repos) {

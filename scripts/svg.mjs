@@ -61,6 +61,55 @@ export function panel(id, width, height, glows, radius = 24) {
   return { defs, body };
 }
 
+export function heading(doc, title, caption, x, y) {
+  return doc.text("display", title, 36, x, y, DARK.ink) + doc.text("regular", caption, 17, x, y + 32, DARK.muted);
+}
+
+const ENTER = "M17 6v5a3 3 0 0 1-3 3H6m3-3-3 3 3 3";
+const PROMPT = "M0 0l7 7.5-7 7.5";
+
+export function keycapWidth(doc, label) {
+  return label === "enter" ? 30 : Math.max(30, doc.width("mono", label, 14) + 16);
+}
+
+export function keycap(doc, label, x, y, stroke = DARK.faint) {
+  const width = keycapWidth(doc, label);
+  const face =
+    label === "enter"
+      ? `<path transform="translate(${round(x + width / 2 - 11.5)} ${y - 17.5})" d="${ENTER}" fill="none" stroke="${DARK.secondary}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`
+      : doc.text("mono", label, 14, x + width / 2, y - 1, DARK.secondary, { anchor: "middle" });
+  return `<rect x="${round(x)}" y="${y - 19}" width="${round(width)}" height="26" rx="6" fill="none" stroke="${stroke}"/>${face}`;
+}
+
+export function hints(doc, entries, right, y) {
+  const pieces = [];
+  const keys = new Map();
+  let cursor = right;
+  for (const [key, label] of [...entries].reverse()) {
+    cursor -= doc.width("regular", label, 15);
+    pieces.push(doc.text("regular", label, 15, cursor, y, DARK.muted));
+    cursor -= keycapWidth(doc, key) + 8;
+    pieces.push(keycap(doc, key, cursor, y));
+    keys.set(key, cursor);
+    cursor -= 22;
+  }
+  return { markup: pieces.join(""), keys };
+}
+
+export function searchBar(doc, x, y, width, height, scope) {
+  const labelWidth = doc.width("monoMedium", scope, 14, 1.5);
+  const chipWidth = 16 + labelWidth + 12 + keycapWidth(doc, "tab") + 8;
+  const chipX = x + width - 14 - chipWidth;
+  const center = y + height / 2;
+  return (
+    `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${DARK.base}" stroke="${DARK.amber}" stroke-width="2"/>` +
+    `<path transform="translate(${x + 26} ${round(center - 7.5)})" d="${PROMPT}" fill="none" stroke="${DARK.amber}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<rect x="${round(chipX)}" y="${center - 18}" width="${round(chipWidth)}" height="36" rx="10" fill="${DARK.amber}" fill-opacity="0.12"/>` +
+    doc.text("monoMedium", scope, 14, chipX + 16, center + 5, DARK.amber, { tracking: 1.5 }) +
+    keycap(doc, "tab", chipX + 16 + labelWidth + 12, center + 7, "#7a5d1f")
+  );
+}
+
 export function chip(doc, label, x, y, { dot, icon, color = DARK.secondary, fill = DARK.row, fillOpacity = 1, size = 16, height = 34 } = {}) {
   const pad = 14;
   const lead = dot ? 18 : icon ? 22 : 0;

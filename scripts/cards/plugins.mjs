@@ -1,5 +1,5 @@
 import { round } from "../type.mjs";
-import { DARK, discrete, panel, svg, tile } from "../svg.mjs";
+import { DARK, discrete, heading, hints, panel, svg, tile } from "../svg.mjs";
 
 const WIDTH = 1200;
 const PAD = 48;
@@ -11,39 +11,11 @@ const NAME = 23;
 const DESCRIPTION = 16.5;
 const LEADING = 23;
 
-const ENTER = "M17 6v5a3 3 0 0 1-3 3H6m3-3-3 3 3 3";
-
-function keycapWidth(doc, label) {
-  return label === "enter" ? 30 : Math.max(30, doc.width("mono", label, 14) + 16);
-}
-
-function keycap(doc, label, x, y) {
-  const width = keycapWidth(doc, label);
-  const face =
-    label === "enter"
-      ? `<path transform="translate(${round(x + width / 2 - 11.5)} ${y - 17.5})" d="${ENTER}" fill="none" stroke="${DARK.secondary}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`
-      : doc.text("mono", label, 14, x + width / 2, y - 1, DARK.secondary, { anchor: "middle" });
-  return `<rect x="${round(x)}" y="${y - 19}" width="${round(width)}" height="26" rx="6" fill="none" stroke="${DARK.faint}"/>${face}`;
-}
-
-function hints(doc, entries, right, y) {
-  const pieces = [];
-  let cursor = right;
-  for (const [key, label] of [...entries].reverse()) {
-    cursor -= doc.width("regular", label, 15);
-    pieces.push(doc.text("regular", label, 15, cursor, y, DARK.muted));
-    cursor -= keycapWidth(doc, key) + 8;
-    pieces.push(keycap(doc, key, cursor, y));
-    cursor -= 22;
-  }
-  return pieces.join("");
-}
-
 export function pluginsCard({ plugins }, doc) {
   const columnWidth = (WIDTH - 2 * PAD - (COLUMNS - 1) * GAP) / COLUMNS;
   const textWidth = columnWidth - ICON - 30;
   const total = plugins.length * STEP;
-  const top = 118;
+  const top = 154;
   const cells = [];
   let y = top;
   for (let start = 0; start < plugins.length; start += COLUMNS) {
@@ -62,8 +34,7 @@ export function pluginsCard({ plugins }, doc) {
   ]);
 
   const parts = [frame.body];
-  parts.push(doc.text("monoMedium", "INSIDE QOL", 15, PAD, 56, DARK.amber, { tracking: 3 }));
-  parts.push(doc.text("display", `${plugins.length} plugins, one tray`, 34, PAD, 92, DARK.ink));
+  parts.push(heading(doc, `${plugins.length} plugins, one tray`, "each one is released and installed on its own.", PAD, 80));
   parts.push(
     hints(
       doc,
@@ -74,7 +45,7 @@ export function pluginsCard({ plugins }, doc) {
       ],
       WIDTH - PAD,
       74,
-    ),
+    ).markup,
   );
   cells.forEach((cell, index) => {
     const on = discrete(

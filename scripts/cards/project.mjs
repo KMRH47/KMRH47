@@ -1,36 +1,36 @@
-import { DARK, chip, chips, panel, svg, tile } from "../svg.mjs";
+import { DARK, chip, chips, panel, searchBar, svg, tile } from "../svg.mjs";
 
-const WIDTH = 600;
-const HEIGHT = 250;
-const PAD = 32;
+const WIDTH = 1200;
+const HEIGHT = 104;
+const TEXT = 108;
 const STAR = "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z";
+const SMALL = { size: 14, height: 28 };
 
 export function projectCard(project, stars, marks, doc) {
   const color = DARK[project.accent];
   const name = project.repo.split("/")[1];
-  const frame = panel(name, WIDTH, HEIGHT, [
-    { x: WIDTH - 40, y: 10, r: 300, color, opacity: 0.2 },
-    { x: 0, y: HEIGHT, r: 240, color: DARK.amber, opacity: 0.05 },
-  ], 20);
+  const frame = panel(name, WIDTH, HEIGHT, [{ x: 54, y: HEIGHT / 2, r: 200, color, opacity: 0.22 }], 18);
   const parts = [frame.body];
-  parts.push(tile(project.icon ?? marks.get(project.mark), PAD, PAD, 68, color, { wash: 0.16 }));
-  const labelWidth = 28 + doc.width("medium", project.label, 14);
-  const nameSpace = WIDTH - PAD - labelWidth - 20 - (PAD + 88);
-  const nameSize = Math.min(34, (34 * nameSpace) / doc.width("display", name, 34));
-  parts.push(doc.text("display", name, nameSize, PAD + 88, PAD + 48, DARK.ink));
+  parts.push(tile(project.icon ?? marks.get(project.mark), 22, 20, 64, color, { wash: 0.16 }));
+  parts.push(doc.text("display", name, 28, TEXT, 46, DARK.ink));
   parts.push(
-    chip(doc, project.label, WIDTH - PAD - labelWidth, 26, { color, fill: color, fillOpacity: 0.12, size: 14, height: 28 }).markup,
+    chip(doc, project.label, TEXT + doc.width("display", name, 28) + 16, 23, { ...SMALL, color, fill: color, fillOpacity: 0.12 }).markup,
   );
-
-  const lines = doc.wrap("regular", project.text, 18, WIDTH - 2 * PAD);
-  const shown = lines.slice(0, 2);
-  if (lines.length > 2) shown[1] = doc.fit("regular", `${shown[1]} ${lines.slice(2).join(" ")}`, 18, WIDTH - 2 * PAD);
-  shown.forEach((line, index) => parts.push(doc.text("regular", line, 18, PAD, 140 + index * 27, DARK.secondary)));
-
-  const row = chips(doc, project.chips, PAD, 192);
-  parts.push(row.markup);
-  if (stars > 0) {
-    parts.push(chip(doc, stars.toLocaleString("en-US"), row.end, 192, { icon: { d: STAR, fill: DARK.amber } }).markup);
-  }
+  const meta = stars > 0 ? [...project.chips, { label: stars.toLocaleString("en-US"), icon: { d: STAR, fill: DARK.amber } }] : project.chips;
+  const metaWidth = chips(doc, meta, 0, 0, SMALL).end - 10;
+  parts.push(chips(doc, meta, WIDTH - 24 - metaWidth, 23, SMALL).markup);
+  parts.push(doc.text("regular", doc.fit("regular", project.text, 17.5, WIDTH - TEXT - 24), 17.5, TEXT, 80, DARK.secondary));
   return svg(WIDTH, HEIGHT, `${name}: ${project.text}`, doc, parts.join(""), frame.defs);
+}
+
+export function projectsHeader(query, doc) {
+  const height = 84;
+  const parts = [searchBar(doc, 1, 1, WIDTH - 2, height - 2, "PROJECTS")];
+  const end = 57 + doc.width("mono", query, 26);
+  parts.push(doc.text("mono", query, 26, 57, height / 2 + 9, DARK.ink));
+  parts.push(
+    `<rect x="${Math.round(end + 3)}" y="${height / 2 - 16}" width="2.5" height="32" rx="1.25" fill="${DARK.amber}">` +
+      `<animate attributeName="opacity" values="1;0" keyTimes="0;0.5" dur="1s" calcMode="discrete" repeatCount="indefinite"/></rect>`,
+  );
+  return svg(WIDTH, height, `A qol search for ${query}`, doc, parts.join(""));
 }
