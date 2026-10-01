@@ -87,3 +87,38 @@ export function kcdShowcase({ henry, aim }, doc) {
   });
   return svg(WIDTH, KCD.height, "kcd2-m4a1: a fully automatic M4A1 carbine for Kingdom Come: Deliverance II that fires 5.56 cartridges. Henry aiming it, and the view down its sights.", doc, parts.join(""), defs);
 }
+
+const LOADOUT = { height: 400, henry: { x: 64, height: 372, width: 217, source: 462 }, items: [300, 770], icon: 128 };
+
+export function kcdLoadout({ idle, rifle, cartridge }, doc) {
+  const frame = panel("loadout", WIDTH, LOADOUT.height, [
+    { x: 150, y: 260, r: 300, color: DARK.orange, opacity: 0.3 },
+    { x: 1000, y: 0, r: 360, color: DARK.amber, opacity: 0.12 },
+  ]);
+  const henryWidth = Math.round((LOADOUT.henry.width * LOADOUT.henry.height) / LOADOUT.henry.source);
+  const parts = [
+    frame.body,
+    `<image href="${idle}" x="${LOADOUT.henry.x}" y="${LOADOUT.height - LOADOUT.henry.height - 14}" width="${henryWidth}" height="${LOADOUT.henry.height}"/>`,
+  ];
+  const items = [
+    { icon: rifle, name: "M4A1", kind: "handgonne · unique", stats: [["power", "900"], ["durability", "1.0k"], ["weight", "3.5"], ["price", "1668.2"]], quote: "“No idea how I got this.”" },
+    { icon: cartridge, name: "5.56 cartridge", kind: "ammunition", stats: [["calibre", "5.56 mm"], ["magazine", "30 rounds"]] },
+  ];
+  items.forEach((item, index) => {
+    const x = LOADOUT.items[index];
+    const text = x + LOADOUT.icon + 28;
+    parts.push(`<rect x="${x}" y="64" width="${LOADOUT.icon}" height="${LOADOUT.icon}" rx="20" fill="${DARK.row}"/>`);
+    parts.push(`<image href="${item.icon}" x="${x}" y="64" width="${LOADOUT.icon}" height="${LOADOUT.icon}"/>`);
+    parts.push(label(doc, index === 0 ? "in my inventory" : "loaded with", text, 84, DARK.orange));
+    parts.push(doc.text("display", item.name, 38, text, 128, DARK.ink));
+    parts.push(doc.text("medium", item.kind, 17, text, 158, DARK.muted));
+    item.stats.forEach(([key, value], row) => {
+      const y = 236 + row * 32;
+      parts.push(doc.text("regular", key, 17, x, y, DARK.muted));
+      parts.push(doc.text("medium", value, 17, x + 300, y, DARK.ink, { anchor: "end" }));
+      parts.push(`<rect x="${x}" y="${y + 11}" width="300" height="1" fill="${DARK.line}"/>`);
+    });
+    if (item.quote) parts.push(doc.text("regular", item.quote, 17, x, 236 + item.stats.length * 32 + 22, DARK.secondary));
+  });
+  return svg(WIDTH, LOADOUT.height, "Henry standing with the M4A1, and the M4A1 and 5.56 cartridge icons from the inventory", doc, parts.join(""), frame.defs);
+}

@@ -4,7 +4,7 @@ import { bannerCard } from "./cards/banner.mjs";
 import { pluginsCard } from "./cards/plugins.mjs";
 import { projectCard, projectsHeader } from "./cards/project.mjs";
 import { screensCard } from "./cards/screens.mjs";
-import { kcdShowcase, qolShowcase } from "./cards/showcase.mjs";
+import { kcdLoadout, kcdShowcase, qolShowcase } from "./cards/showcase.mjs";
 import { stackCard } from "./cards/stack.mjs";
 import { stars } from "./github.mjs";
 import { PROJECTS } from "./projects.mjs";
@@ -49,6 +49,10 @@ const facts = {
 const files = {
   "banner.svg": bannerCard(facts, type.document()),
   "qol.svg": qolShowcase(facts, type.document()),
+  "kcd2-loadout.svg": kcdLoadout(
+    { idle: await shot("kcd2-henry-idle"), rifle: await shot("kcd2-m4a1-icon"), cartridge: await shot("kcd2-556-icon") },
+    type.document(),
+  ),
   "kcd2-m4a1.svg": kcdShowcase({ henry: await shot("kcd2-henry"), aim: await shot("kcd2-ingame") }, type.document()),
   "plugins.svg": pluginsCard(facts, type.document()),
   "screens.svg": screensCard(facts, type.document()),

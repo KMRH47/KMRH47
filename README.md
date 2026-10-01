@@ -7,6 +7,7 @@ Most of what I make starts as a small annoyance at my own desk: a shortcut that 
 <a href="https://github.com/qol-tools/qol"><img src="assets/qol.svg" width="100%" alt="qol, my main project: the real launcher searching apps, then files"></a>
 
 <img src="assets/kcd2-m4a1.svg" width="100%" alt="kcd2-m4a1: a fully automatic M4A1 carbine for Kingdom Come: Deliverance II">
+<img src="assets/kcd2-loadout.svg" width="100%" alt="Henry standing with the M4A1, and its inventory stats">
 
 <img src="assets/stack.svg" width="100%" alt="My stack: the languages, frameworks and tools I use most">
 
