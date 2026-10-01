@@ -1,0 +1,50 @@
+name: Refresh profile cards
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/refresh.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: qol-tools/qol
+          path: .qol
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /plugins/*/plugin.toml
+            /libs/theme/src/marks.rs
+            /libs/gpui/assets/fonts/IBMPlex*.ttf
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/build.mjs --qol .qol
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Commit refreshed cards
+        run: |
+          git add assets
+          git diff --cached --quiet && exit 0
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "chore: refresh profile cards"
+          git push
