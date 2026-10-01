@@ -3,19 +3,10 @@ const ICONS = {
   pause: `<rect x="7" y="7" width="34" height="34" rx="9"/><path d="M19 17v14M29 17v14"/>`,
   format: `<path d="M8 11h32M8 19h22M8 27h28M8 35h16"/><path d="M33 31l5 5-5 5"/>`,
   stopwatch: `<circle cx="24" cy="27" r="15"/><path d="M24 27v-8"/><path d="M19 5h10M24 5v7"/>`,
-  crosshair: `<circle cx="24" cy="24" r="14"/><path d="M24 4v10M24 34v10M4 24h10M34 24h10"/>`,
   pullRequest: `<circle cx="13" cy="11" r="4"/><circle cx="13" cy="37" r="4"/><circle cx="35" cy="37" r="4"/><path d="M13 15v18"/><path d="M35 33V20a6 6 0 0 0-6-6h-7"/><path d="M26 10l-4 4 4 4"/>`,
 };
 
 export const PROJECTS = [
-  {
-    repo: "qol-tools/qol",
-    text: "A tray app and a set of Rust plugins that make any computer I sit down at work like my own.",
-    mark: "qol",
-    accent: "amber",
-    label: "Linux · macOS",
-    chips: [{ label: "Rust", dot: "#dea584" }, { label: "gpui" }],
-  },
   {
     repo: "qol-tools/qol-skills",
     text: "Claude Code and Codex skills that teach coding agents how qol is built, tested and released.",
@@ -79,13 +70,5 @@ export const PROJECTS = [
     accent: "violet",
     label: "Firefox · Chrome",
     chips: [{ label: "JavaScript", dot: "#f1e05a" }],
-  },
-  {
-    name: "kcd2-m4a1",
-    text: "An M4A1 carbine for Kingdom Come: Deliverance II, plus the Blender toolchain behind it. It aims and fires; hands are next.",
-    icon: ICONS.crosshair,
-    accent: "orange",
-    label: "in progress",
-    chips: [{ label: "Python", dot: "#3572a5" }, { label: "Blender" }],
   },
 ];

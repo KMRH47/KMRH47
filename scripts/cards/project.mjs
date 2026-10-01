@@ -6,13 +6,9 @@ const TEXT = 108;
 const STAR = "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z";
 const SMALL = { size: 14, height: 28 };
 
-export function projectName(project) {
-  return project.name ?? project.repo.split("/")[1];
-}
-
 export function projectCard(project, stars, marks, doc) {
   const color = DARK[project.accent];
-  const name = projectName(project);
+  const name = project.repo.split("/")[1];
   const frame = panel(name, WIDTH, HEIGHT, [{ x: 54, y: HEIGHT / 2, r: 200, color, opacity: 0.22 }], 18);
   const parts = [frame.body];
   parts.push(tile(project.icon ?? marks.get(project.mark), 22, 20, 64, color, { wash: 0.16 }));

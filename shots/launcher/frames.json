@@ -1,0 +1,140 @@
+[
+ {
+  "file": "01.webp",
+  "ms": 900,
+  "height": 54,
+  "mode": "apps"
+ },
+ {
+  "file": "02.webp",
+  "ms": 180,
+  "height": 658,
+  "mode": "apps"
+ },
+ {
+  "file": "03.webp",
+  "ms": 180,
+  "height": 660,
+  "mode": "apps"
+ },
+ {
+  "file": "04.webp",
+  "ms": 1500,
+  "height": 664,
+  "mode": "apps"
+ },
+ {
+  "file": "05.webp",
+  "ms": 800,
+  "height": 664,
+  "mode": "apps"
+ },
+ {
+  "file": "06.webp",
+  "ms": 1500,
+  "height": 664,
+  "mode": "apps"
+ },
+ {
+  "file": "07.webp",
+  "ms": 500,
+  "height": 54,
+  "mode": "apps"
+ },
+ {
+  "file": "08.webp",
+  "ms": 180,
+  "height": 657,
+  "mode": "apps"
+ },
+ {
+  "file": "09.webp",
+  "ms": 180,
+  "height": 642,
+  "mode": "apps"
+ },
+ {
+  "file": "10.webp",
+  "ms": 180,
+  "height": 632,
+  "mode": "apps"
+ },
+ {
+  "file": "11.webp",
+  "ms": 1700,
+  "height": 488,
+  "mode": "apps"
+ },
+ {
+  "file": "12.webp",
+  "ms": 900,
+  "height": 54,
+  "mode": "files"
+ },
+ {
+  "file": "13.webp",
+  "ms": 180,
+  "height": 610,
+  "mode": "files"
+ },
+ {
+  "file": "14.webp",
+  "ms": 180,
+  "height": 599,
+  "mode": "files"
+ },
+ {
+  "file": "15.webp",
+  "ms": 180,
+  "height": 588,
+  "mode": "files"
+ },
+ {
+  "file": "16.webp",
+  "ms": 1300,
+  "height": 587,
+  "mode": "files"
+ },
+ {
+  "file": "17.webp",
+  "ms": 800,
+  "height": 587,
+  "mode": "files"
+ },
+ {
+  "file": "18.webp",
+  "ms": 1500,
+  "height": 587,
+  "mode": "files"
+ },
+ {
+  "file": "19.webp",
+  "ms": 500,
+  "height": 54,
+  "mode": "files"
+ },
+ {
+  "file": "20.webp",
+  "ms": 180,
+  "height": 610,
+  "mode": "files"
+ },
+ {
+  "file": "21.webp",
+  "ms": 180,
+  "height": 594,
+  "mode": "files"
+ },
+ {
+  "file": "22.webp",
+  "ms": 180,
+  "height": 586,
+  "mode": "files"
+ },
+ {
+  "file": "23.webp",
+  "ms": 2200,
+  "height": 376,
+  "mode": "files"
+ }
+]
