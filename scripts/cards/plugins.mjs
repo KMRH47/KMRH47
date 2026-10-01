@@ -1,5 +1,5 @@
 import { round } from "../type.mjs";
-import { DARK, discrete, heading, hints, panel, svg, tile } from "../svg.mjs";
+import { DARK, discrete, heading, panel, svg, tile } from "../svg.mjs";
 
 const WIDTH = 1200;
 const PAD = 48;
@@ -10,6 +10,10 @@ const STEP = 1.1;
 const NAME = 23;
 const DESCRIPTION = 16.5;
 const LEADING = 23;
+const PLATFORMS = [
+  ["linux", "Linux"],
+  ["macos", "macOS"],
+];
 
 export function pluginsCard({ plugins }, doc) {
   const columnWidth = (WIDTH - 2 * PAD - (COLUMNS - 1) * GAP) / COLUMNS;
@@ -34,19 +38,8 @@ export function pluginsCard({ plugins }, doc) {
   ]);
 
   const parts = [frame.body];
-  parts.push(heading(doc, `${plugins.length} plugins, one tray`, "each one is released and installed on its own.", PAD, 80));
-  parts.push(
-    hints(
-      doc,
-      [
-        ["↑↓", "move"],
-        ["enter", "open"],
-        ["esc", "close"],
-      ],
-      WIDTH - PAD,
-      74,
-    ).markup,
-  );
+  const counts = PLATFORMS.map(([key, label]) => `${plugins.filter((plugin) => plugin.platforms.includes(key)).length} run on ${label}`);
+  parts.push(heading(doc, `${plugins.length} plugins, one tray`, `each one is released and installed on its own. ${counts.join(" and ")}.`, PAD, 80));
   cells.forEach((cell, index) => {
     const on = discrete(
       "opacity",
@@ -64,6 +57,8 @@ export function pluginsCard({ plugins }, doc) {
     parts.push(tile(cell.mark, cell.x, cell.y, ICON, DARK.amber, { wash: 0.06, stroke: DARK.secondary }));
     parts.push(`<g opacity="0">${on}${tile(cell.mark, cell.x, cell.y, ICON, DARK.amber, { wash: 0.22 })}</g>`);
     parts.push(doc.text("display", cell.name, NAME, cell.x + ICON + 18, cell.y + 20, DARK.ink));
+    const platforms = PLATFORMS.filter(([key]) => cell.platforms.includes(key)).map(([, label]) => label);
+    parts.push(doc.text("medium", platforms.join(" · "), 13, cell.x + columnWidth - 8, cell.y + 19, DARK.muted, { anchor: "end" }));
     cell.lines.forEach((line, lineIndex) => {
       parts.push(doc.text("regular", line, DESCRIPTION, cell.x + ICON + 18, cell.y + 46 + lineIndex * LEADING, DARK.secondary));
     });

@@ -1,12 +1,10 @@
-<img src="assets/hero.svg" width="100%" alt="The qol launcher searching its plugins as I type">
+<img src="shots/hero.webp" width="100%" alt="The qol launcher on Linux Mint, searching for qol, term and fir">
 
 I'm Karsten, a full-stack developer based in Malmö.
-Most of my time goes into [qol](https://github.com/qol-tools/qol): a tray app and a set of Rust plugins that make any computer I sit down at work like my own.
+Most of my time goes into [qol](https://github.com/qol-tools/qol): a tray app for Linux and macOS, with a set of Rust plugins that make any computer I sit down at work like my own.
 My plugins, keybindings and settings follow me from machine to machine, and each machine is left as I found it when I leave.
 
 [Download qol-tray](https://github.com/qol-tools/qol/releases/latest) · [qol-tools on GitHub](https://github.com/qol-tools) · [LinkedIn](https://linkedin.com/in/kmrh47)
-
-<img src="assets/time.svg" width="100%" alt="Where my time goes: commits in the past 12 months by repository">
 
 <img src="assets/plugins.svg" width="100%" alt="The plugins inside qol, each with its icon and what it does">
 

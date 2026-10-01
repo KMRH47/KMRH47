@@ -1,4 +1,4 @@
-import { DARK, chip, chips, panel, searchBar, svg, tile } from "../svg.mjs";
+import { DARK, chip, chips, heading, panel, svg, tile } from "../svg.mjs";
 
 const WIDTH = 1200;
 const HEIGHT = 104;
@@ -23,14 +23,7 @@ export function projectCard(project, stars, marks, doc) {
   return svg(WIDTH, HEIGHT, `${name}: ${project.text}`, doc, parts.join(""), frame.defs);
 }
 
-export function projectsHeader(query, doc) {
-  const height = 84;
-  const parts = [searchBar(doc, 1, 1, WIDTH - 2, height - 2, "PROJECTS")];
-  const end = 57 + doc.width("mono", query, 26);
-  parts.push(doc.text("mono", query, 26, 57, height / 2 + 9, DARK.ink));
-  parts.push(
-    `<rect x="${Math.round(end + 3)}" y="${height / 2 - 16}" width="2.5" height="32" rx="1.25" fill="${DARK.amber}">` +
-      `<animate attributeName="opacity" values="1;0" keyTimes="0;0.5" dur="1s" calcMode="discrete" repeatCount="indefinite"/></rect>`,
-  );
-  return svg(WIDTH, height, `A qol search for ${query}`, doc, parts.join(""));
+export function projectsHeader(title, caption, doc) {
+  const height = 112;
+  return svg(WIDTH, height, `${title}: ${caption}`, doc, heading(doc, title, caption, 24, 52));
 }
