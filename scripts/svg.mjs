@@ -109,10 +109,6 @@ export function discrete(attribute, steps, total) {
   return `<animate attributeName="${attribute}" calcMode="discrete" ${keyed(steps, total)}/>`;
 }
 
-export function linear(attribute, steps, total) {
-  return `<animate attributeName="${attribute}" calcMode="linear" ${keyed(steps, total)}/>`;
-}
-
 export function bob(distance, seconds, phase) {
   return `<animateTransform attributeName="transform" type="translate" values="0 0;0 ${-distance};0 0" keyTimes="0;0.5;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1" dur="${seconds}s" begin="${-phase}s" repeatCount="indefinite"/>`;
 }
