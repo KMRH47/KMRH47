@@ -34,6 +34,7 @@ jobs:
             /plugins/*/plugin.toml
             /libs/theme/src/marks.rs
             /libs/gpui/assets/fonts/IBMPlex*.ttf
+            /libs/gpui/assets/fonts/SairaSemiCondensed-SemiBold.ttf
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22

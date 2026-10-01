@@ -37,5 +37,5 @@ export async function readQol(root) {
   }
   plugins.sort((a, b) => a.name.localeCompare(b.name));
   if (!marks.has("qol")) throw new Error("marks.rs has no qol mark");
-  return { plugins, mark: marks.get("qol"), fonts: path.join(root, "libs/gpui/assets/fonts") };
+  return { plugins, marks, fonts: path.join(root, "libs/gpui/assets/fonts") };
 }
