@@ -19,6 +19,20 @@ export const DARK = {
   violet: "#8a93f7",
 };
 
+export const QOL = {
+  ground: "#161819",
+  raised: "#202225",
+  bar: "#26282a",
+  line: "#2c2d31",
+  ink: "#f9f9f9",
+  text: "#9e9e9e",
+  muted: "#909090",
+  dim: "#686a6c",
+  accent: "#8a93f7",
+  accentText: "#9996eb",
+  selection: "#46497a",
+};
+
 export const LIGHT = { ink: "#1a1815", secondary: "#4f4b43", muted: "#6f6a60", amber: "#b8860b" };
 
 const escape = (text) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll('"', "&quot;");
@@ -59,6 +73,10 @@ export function panel(id, width, height, glows, radius = 24) {
     glows.map((spot, index) => `<circle cx="${spot.x}" cy="${spot.y}" r="${spot.r}" fill="url(#${id}-glow${index})"/>`).join("") +
     `</g>`;
   return { defs, body };
+}
+
+export function qolWindow(x, y, width, height) {
+  return `<rect x="${x + 0.5}" y="${y + 0.5}" width="${width - 1}" height="${height - 1}" rx="12" fill="${QOL.ground}" stroke="${QOL.line}"/>`;
 }
 
 export function heading(doc, title, caption, x, y) {
@@ -107,6 +125,10 @@ function keyed(steps, total) {
 
 export function discrete(attribute, steps, total) {
   return `<animate attributeName="${attribute}" calcMode="discrete" ${keyed(steps, total)}/>`;
+}
+
+export function linear(attribute, steps, total) {
+  return `<animate attributeName="${attribute}" calcMode="linear" ${keyed(steps, total)}/>`;
 }
 
 export function bob(distance, seconds, phase) {
