@@ -60,13 +60,12 @@ export function qolShowcase({ plugins, frames }, doc) {
   return svg(WIDTH, height, `qol, my main project: the real launcher searching apps, then files`, doc, parts.join(""), frame.defs + SHADOW);
 }
 
-export function kcdShowcase(image, doc) {
-  const defs =
-    `<clipPath id="kcd-clip"><rect width="${WIDTH}" height="${KCD.height}" rx="24"/></clipPath>` +
-    `<linearGradient id="kcd-veil" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${DARK.base}" stop-opacity="0.94"/><stop offset="0.24" stop-color="${DARK.base}" stop-opacity="0.82"/><stop offset="0.42" stop-color="${DARK.base}" stop-opacity="0"/></linearGradient>`;
-  const parts = [
-    `<g clip-path="url(#kcd-clip)"><image href="${image}" width="${WIDTH}" height="${KCD.height}"/><rect width="${WIDTH}" height="${KCD.height}" fill="url(#kcd-veil)"/></g>`,
-  ];
+export function kcdShowcase(doc) {
+  const frame = panel("kcd", WIDTH, KCD.height, [
+    { x: 900, y: 220, r: 520, color: DARK.orange, opacity: 0.3 },
+    { x: 40, y: 30, r: 300, color: DARK.amber, opacity: 0.16 },
+  ]);
+  const parts = [frame.body];
   parts.push(label(doc, "on the side", LEFT, 76, DARK.orange));
   parts.push(doc.text("display", "kcd2-m4a1", 56, LEFT - 2, 136, DARK.ink));
   doc
@@ -84,5 +83,5 @@ export function kcdShowcase(image, doc) {
       : `<circle cx="${LEFT + 7}" cy="${y - 6}" r="5.2" fill="none" stroke="${DARK.orange}" stroke-width="2"/>`;
     parts.push(dot + doc.text("medium", done ? text : `${text}, in progress`, 17, LEFT + 24, y, done ? DARK.secondary : DARK.orange));
   });
-  return svg(WIDTH, KCD.height, "kcd2-m4a1: an M4A1 carbine mod for Kingdom Come: Deliverance II, in progress. Henry holding the carbine in game.", doc, parts.join(""), defs);
+  return svg(WIDTH, KCD.height, "kcd2-m4a1: an M4A1 carbine mod for Kingdom Come: Deliverance II, in progress.", doc, parts.join(""), frame.defs);
 }
