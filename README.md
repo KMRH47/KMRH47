@@ -1,4 +1,4 @@
-I'm Karsten, a full-stack developer at Brunata in Malmö.
+I'm Karsten, a full-stack developer based in Malmö.
 I build across whatever stack the problem needs, from Rust desktop apps to browser extensions and IDE plugins.
 Most of what I make starts as a small annoyance at my own desk: a shortcut that only works on one OS, a time log that takes too many clicks, a computer that does not feel like mine.
 
