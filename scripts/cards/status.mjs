@@ -1,14 +1,14 @@
 import { round } from "../type.mjs";
 import { QOL, qolWindow, svg } from "../svg.mjs";
 
-const WIDTH = 1200;
-const PAD = 48;
+const WIDTH = 838;
+const PAD = 24;
 const COLUMN = (WIDTH - 2 * PAD) / 5;
-const INNER = COLUMN - 22;
-const TOP = 108;
-const ROW = 23;
-const PIP = 9;
-const PITCH = 13;
+const INNER = COLUMN - 14;
+const TOP = 86;
+const ROW = 21;
+const PIP = 11;
+const PITCH = 15;
 const PER_ROW = 9;
 const COLOR = { ok: QOL.success, bad: QOL.danger, run: QOL.accent, wait: QOL.dim };
 const LINE = { ok: QOL.muted, bad: QOL.danger, run: QOL.accentText };
@@ -29,14 +29,14 @@ function pip(state, x, y) {
   return `<rect x="${round(x + 1)}" y="${y + 1}" width="${PIP - 2}" height="${PIP - 2}" rx="1.5" fill="none" stroke="${COLOR[state]}" stroke-width="2"/>`;
 }
 
-function row(doc, x, y, { name, time, state, dotted = true }) {
+function row(doc, x, y, { name, time, state, dotted = true, live = state === "run" }) {
   const lead = dotted ? 18 : 0;
-  const timeWidth = time ? doc.width("regular", time, 14) + 12 : 0;
+  const timeWidth = time ? doc.width("regular", time, 13) + 10 : 0;
   const color = dotted ? QOL.muted : LINE[state];
   return (
     (dotted ? dot(state, x + 4.5, y - 5) : "") +
-    doc.text("regular", doc.fit("regular", name, 15, INNER - lead - timeWidth), 15, x + lead, y, color) +
-    (time ? doc.text("regular", time, 14, x + INNER, y, QOL.dim, { anchor: "end" }) : "")
+    doc.text("regular", doc.fit("regular", name, 14, INNER - lead - timeWidth), 14, x + lead, y, color) +
+    (time ? doc.text("regular", time, 13, x + INNER, y, live ? QOL.accentText : QOL.dim, { anchor: "end" }) : "")
   );
 }
 
@@ -44,7 +44,7 @@ function fold({ items, wall }) {
   const ok = items.filter((item) => item.state === "ok");
   const bad = items.filter((item) => item.state === "bad");
   const building = items.length - ok.length - bad.length;
-  const lines = [{ name: `${bad.length || building ? ok.length : `all ${ok.length}`} released`, time: wall, state: "ok", dotted: false }];
+  const lines = [{ name: `${bad.length || building ? ok.length : `all ${ok.length}`} released`, time: wall, state: "ok", dotted: false, live: building > 0 }];
   if (bad.length) lines.push({ name: `${bad.map((item) => item.name).join(" and ")} failed`, time: "", state: "bad", dotted: false });
   if (building) lines.push({ name: `${building} still building`, time: "", state: "run", dotted: false });
   return lines;
@@ -62,8 +62,8 @@ export function statusCard(stages, doc) {
   let deepest = 0;
   stages.forEach((stage, column) => {
     const x = PAD + column * COLUMN;
-    parts.push(doc.text("display", stage.name, 44, x, 74, QOL.ink));
-    parts.push(doc.text("medium", stage.fact, 14, x + 2, 98, QOL.accentText));
+    parts.push(doc.text("display", stage.name, 36, x, 56, QOL.ink));
+    parts.push(doc.text("medium", stage.fact, 13, x + 2, 77, QOL.accentText));
     let y = TOP;
     if (stage.items) {
       stage.items.forEach((item, index) => {
@@ -82,6 +82,6 @@ export function statusCard(stages, doc) {
     }
     deepest = Math.max(deepest, y);
   });
-  const height = Math.ceil(deepest + 26);
+  const height = Math.ceil(deepest + 20);
   return svg(WIDTH, height, `qol build status. ${stages.map(describe).join("; ")}.`, doc, qolWindow(0, 0, WIDTH, height) + parts.join(""));
 }

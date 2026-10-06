@@ -33,7 +33,7 @@ function took(spans, now) {
   const running = spans.some(([, end]) => !end);
   const ms = (running ? now : Math.max(...spans.map(([, end]) => Date.parse(end)))) - Math.min(...started.map(Date.parse));
   const time = ms < 60000 ? `${Math.max(1, Math.round(ms / 1000))} s` : `${Math.round(ms / 60000)} min`;
-  return running ? `${time} so far` : time;
+  return time;
 }
 
 const jobSpan = (job) => [job.started_at, job.status === "completed" ? job.completed_at : null];
