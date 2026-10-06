@@ -31,6 +31,7 @@ function pluginSection(toml) {
     .map((block) => block.field("label"))
     .filter((label) => label && !label.startsWith("Settings"));
   return {
+    id: plugin?.field("id"),
     name: plugin?.field("name"),
     icon: plugin?.field("icon"),
     description: plugin?.field("description"),
@@ -48,8 +49,8 @@ export async function readQol(root) {
     if (!entry.isDirectory() || entry.name === "template") continue;
     const file = path.join(root, "plugins", entry.name, "plugin.toml");
     const plugin = pluginSection(await readFile(file, "utf8"));
-    if (!plugin.name || !plugin.description || !plugin.version || !plugin.platforms || !marks.has(plugin.icon)) {
-      throw new Error(`${file}: missing name, description, version, platforms or a known icon`);
+    if (!plugin.id || !plugin.name || !plugin.description || !plugin.version || !plugin.platforms || !marks.has(plugin.icon)) {
+      throw new Error(`${file}: missing id, name, description, version, platforms or a known icon`);
     }
     plugins.push({ ...plugin, mark: marks.get(plugin.icon) });
   }

@@ -31,6 +31,8 @@ export const QOL = {
   accent: "#8a93f7",
   accentText: "#9996eb",
   selection: "#46497a",
+  success: "#4ade80",
+  danger: "#ff6b6b",
 };
 
 export const LIGHT = { ink: "#1a1815", secondary: "#4f4b43", muted: "#6f6a60", amber: "#b8860b" };
