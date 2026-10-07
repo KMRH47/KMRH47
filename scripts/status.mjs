@@ -43,6 +43,18 @@ function piece(name, list, now) {
   return { name, state: worst(list.map(state)), time: took(list.map(jobSpan), now) };
 }
 
+async function candidates(token) {
+  const active = (await runs(token, "plugin-version.yml", 5)).filter((run) => run.status !== "completed");
+  const built = new Map();
+  for (const job of (await Promise.all(active.map((run) => jobs(token, run)))).flat()) {
+    const id = job.name.match(/^Candidate (qol-[a-z0-9-]+?)(?:-v\d+\.\d+\.\d+)? \(/)?.[1];
+    if (id && state(job) !== "skip") built.set(id, [...(built.get(id) ?? []), job]);
+  }
+  return built;
+}
+
+const releasing = (list) => (list.some((job) => state(job) === "bad") ? "bad" : "run");
+
 async function tests(token, now) {
   for (const run of await runs(token, "ci.yml", 10, "&event=merge_group")) {
     const ran = (await jobs(token, run)).filter((job) => /^(lint|release build|sandbox)/.test(job.name) && state(job) !== "skip");
@@ -55,31 +67,50 @@ async function tests(token, now) {
   throw new Error("no merge queue CI run ran tests");
 }
 
-async function tray(token, now) {
-  const [run] = await runs(token, "qol-tray-release.yml", 1);
+async function latestRun(token, workflow, toPieces) {
+  const [run, previous] = await runs(token, workflow, 2);
+  const pieces = await toPieces(run);
+  if (pieces.length || !previous) return { run, pieces };
+  return { run, pieces: (await toPieces(previous)).map((item) => ({ ...item, state: state(run), time: "" })) };
+}
+
+async function tray(token, building, now) {
+  const { run, pieces } = await latestRun(token, "qol-tray-release.yml", async (run) =>
+    (await jobs(token, run))
+      .filter((job) => job.name.startsWith("Build ") || ["bad", "run"].includes(state(job)))
+      .sort((a, b) => platform(a.name) - platform(b.name))
+      .map((job) => piece(job.name.replace(/^Build /, "").replace(/ release$/, ""), [job], now)),
+  );
   const version = run.display_title.match(/qol-tray-v(\d+\.\d+\.\d+)/)?.[1];
   if (!version) throw new Error(`qol-tray release run ${run.id} names no version: ${run.display_title}`);
-  const pieces = (await jobs(token, run))
-    .filter((job) => job.name.startsWith("Build ") || ["bad", "run"].includes(state(job)))
-    .sort((a, b) => platform(a.name) - platform(b.name))
-    .map((job) => piece(job.name.replace(/^Build /, "").replace(/ release$/, ""), [job], now));
+  const next = building.get("qol-tray");
+  if (next) {
+    for (const item of pieces) {
+      const list = next.filter((job) => PLATFORMS[platform(item.name)]?.[1].test(job.name));
+      if (list.length) Object.assign(item, { state: releasing(list), time: took(list.map(jobSpan), now) });
+    }
+  }
   return { name: "qol-tray", fact: `version ${version}`, pieces };
 }
 
-async function plugins(token, qol, listed, now) {
+async function plugins(token, qol, listed, building, now) {
   const latest = new Map();
   for (const run of await runs(token, "release.yml", 40)) {
     const id = run.display_title.match(/^Release (qol-[a-z0-9-]+)-v\d+\.\d+\.\d+$/)?.[1];
     if (id && !latest.has(id)) latest.set(id, run);
   }
   const items = qol.plugins.map((plugin) => {
+    const next = building.get(plugin.id);
+    if (next) return { name: plugin.name, state: releasing(next), time: took(next.map(jobSpan), now), jobs: next };
     const run = latest.get(plugin.id);
     if (!run) return { name: plugin.name, state: listed.has(plugin.id) ? "ok" : "wait", time: "" };
     return { name: plugin.name, state: state(run), time: took([runSpan(run)], now), run };
   });
   const newest = Math.max(...items.filter((item) => item.run).map((item) => Date.parse(item.run.created_at)));
   const wave = items.filter((item) => item.run && Date.parse(item.run.created_at) > newest - WAVE).map((item) => item.run);
-  return { name: "plugins", fact: `${items.length} plugins`, items, wall: took(wave.map(runSpan), now), wave };
+  const next = items.flatMap((item) => item.jobs ?? []);
+  const wall = next.length ? took(next.map(jobSpan), now) : took(wave.map(runSpan), now);
+  return { name: "plugins", fact: `${items.length} plugins`, items, wall, wave };
 }
 
 async function registry(token, wave, now) {
@@ -96,8 +127,9 @@ async function registry(token, wave, now) {
 }
 
 async function index(token, count, signed, now) {
-  const [run] = await runs(token, "plugin-index.yml", 1);
-  const pieces = (await jobs(token, run)).map((job) => piece(job.name.split(" ")[0].toLowerCase(), [job], now));
+  const { pieces } = await latestRun(token, "plugin-index.yml", async (run) =>
+    (await jobs(token, run)).map((job) => piece(job.name.split(" ")[0].toLowerCase(), [job], now)),
+  );
   return { name: "index", fact: `${count} plugins${signed ? ", signed" : ""}`, pieces };
 }
 
@@ -172,13 +204,15 @@ export async function buildQueue(token, now = Date.now()) {
 }
 
 export async function buildStatus(token, qol, now = Date.now()) {
+  const pending = candidates(token);
   const [response, signature] = await Promise.all([fetch(INDEX), fetch(`${INDEX}.minisig`, { method: "HEAD" })]);
   if (!response.ok) throw new Error(`${INDEX} answered ${response.status}`);
   const listed = new Set(Object.keys((await response.json()).plugins));
-  const released = plugins(token, qol, listed, now);
+  const building = await pending;
+  const released = plugins(token, qol, listed, building, now);
   return Promise.all([
     tests(token, now),
-    tray(token, now),
+    tray(token, building, now),
     released,
     released.then((done) => registry(token, done.wave, now)),
     index(token, listed.size, signature.ok, now),
