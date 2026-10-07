@@ -1,3 +1,4 @@
+import { DurableObject } from "cloudflare:workers";
 import { statusTiles } from "../scripts/cards/status.mjs";
 import { pluginSection } from "../scripts/qol.mjs";
 import { buildQueue, buildStatus } from "../scripts/status.mjs";
@@ -5,13 +6,13 @@ import { FONT_FILES, typeFromFonts } from "../scripts/type.mjs";
 
 const FONTS = "https://raw.githubusercontent.com/qol-tools/qol/main/libs/gpui/assets/fonts/";
 const INDEX = "https://qol-tools.github.io/qol/plugins/index.json";
-const FRESH_FOR = 15;
-const SERVE_STALE_FOR = 86400;
+const FRESH_FOR = 15 * 1000;
+const IDLE_EVERY = 60 * 1000;
+const WATCHED_FOR = 5 * 60 * 1000;
+const WAIT_FOR_FRESH = 3000;
 const TILE = /^\/status-([a-z-]+)\.svg$/;
 
 let type;
-let snapshot = { at: 0, tiles: null };
-let rendering = null;
 
 async function loadType() {
   const buffers = {};
@@ -34,45 +35,54 @@ async function plugins() {
 
 async function render(token) {
   type ??= await loadType();
-  const stages = await buildStatus(token, { plugins: await plugins() });
-  return statusTiles(stages, await buildQueue(token), () => type.document());
+  const [stages, queue] = await Promise.all([plugins().then((list) => buildStatus(token, { plugins: list })), buildQueue(token)]);
+  return statusTiles(stages, queue, () => type.document());
 }
 
-const KEY = new Request("https://qol-status.internal/snapshot");
-const age = () => (Date.now() - snapshot.at) / 1000;
+export class Status extends DurableObject {
+  snapshot = null;
+  viewed = 0;
+  rendering = null;
 
-function refresh(env) {
-  rendering ??= render(env.GITHUB_TOKEN)
-    .then(async (tiles) => {
-      snapshot = { at: Date.now(), tiles };
-      await caches.default.put(KEY, new Response(JSON.stringify(tiles), {
-        headers: { "content-type": "application/json", "cache-control": `max-age=${SERVE_STALE_FOR}`, "x-rendered-at": String(snapshot.at) },
-      }));
-      return tiles;
-    })
-    .finally(() => {
-      rendering = null;
-    });
-  return rendering;
-}
-
-async function tiles(env, ctx) {
-  if (!snapshot.tiles) {
-    const cached = await caches.default.match(KEY);
-    if (cached) snapshot = { at: Number(cached.headers.get("x-rendered-at")), tiles: await cached.json() };
+  refresh() {
+    this.rendering ??= render(this.env.GITHUB_TOKEN)
+      .then(async (tiles) => {
+        this.snapshot = { at: Date.now(), tiles };
+        await this.ctx.storage.put("snapshot", this.snapshot);
+        return this.snapshot;
+      })
+      .finally(() => {
+        this.rendering = null;
+      });
+    return this.rendering;
   }
-  if (!snapshot.tiles || age() > SERVE_STALE_FOR) return refresh(env);
-  if (age() > FRESH_FOR) ctx.waitUntil(refresh(env));
-  return snapshot.tiles;
+
+  async tile(name) {
+    this.viewed = Date.now();
+    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + FRESH_FOR);
+    this.snapshot ??= await this.ctx.storage.get("snapshot");
+    if (!this.snapshot) return (await this.refresh()).tiles[name];
+    if (Date.now() - this.snapshot.at <= 2 * FRESH_FOR) return this.snapshot.tiles[name];
+    const stale = this.snapshot;
+    const fresh = this.refresh().catch(() => stale);
+    const waited = new Promise((resolve) => setTimeout(() => resolve(stale), WAIT_FOR_FRESH));
+    return (await Promise.race([fresh, waited])).tiles[name];
+  }
+
+  async alarm() {
+    await this.refresh().catch((error) => console.error(error));
+    const watched = Date.now() - this.viewed < WATCHED_FOR;
+    await this.ctx.storage.setAlarm(Date.now() + (watched ? FRESH_FOR : IDLE_EVERY));
+  }
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const name = new URL(request.url).pathname.match(TILE)?.[0]?.slice(1);
     if (!name) return new Response("not found", { status: 404 });
-    const rendered = await tiles(env, ctx);
-    if (!rendered[name]) return new Response("not found", { status: 404 });
-    return new Response(rendered[name], {
+    const tile = await env.STATUS.get(env.STATUS.idFromName("qol")).tile(name);
+    if (!tile) return new Response("not found", { status: 404 });
+    return new Response(tile, {
       headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "no-store, max-age=0" },
     });
   },

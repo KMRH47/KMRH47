@@ -2,3 +2,11 @@ name = "qol-status"
 main = "index.mjs"
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "STATUS"
+class_name = "Status"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Status"]

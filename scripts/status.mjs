@@ -14,7 +14,14 @@ const PLATFORMS = [
 
 const runs = async (token, workflow, count, filter = "") =>
   (await rest(token, `${REPO}/actions/workflows/${workflow}/runs?per_page=${count}${filter}`)).workflow_runs;
-const jobs = async (token, run) => (await rest(token, `${REPO}/actions/runs/${run.id}/jobs?per_page=100`)).jobs;
+const finished = new Map();
+async function jobs(token, run) {
+  const key = `${run.id}/${run.run_attempt}`;
+  if (finished.has(key)) return finished.get(key);
+  const list = (await rest(token, `${REPO}/actions/runs/${run.id}/jobs?per_page=100`)).jobs;
+  if (run.status === "completed") finished.set(key, list);
+  return list;
+}
 
 function state({ status, conclusion }) {
   if (status === "in_progress") return "run";
@@ -93,9 +100,9 @@ async function tray(token, building, now) {
   return { name: "qol-tray", fact: `version ${version}`, pieces };
 }
 
-async function plugins(token, qol, listed, building, now) {
+function plugins(qol, listed, building, released, now) {
   const latest = new Map();
-  for (const run of await runs(token, "release.yml", 40)) {
+  for (const run of released) {
     const id = run.display_title.match(/^Release (qol-[a-z0-9-]+)-v\d+\.\d+\.\d+$/)?.[1];
     if (id && !latest.has(id)) latest.set(id, run);
   }
@@ -204,12 +211,15 @@ export async function buildQueue(token, now = Date.now()) {
 }
 
 export async function buildStatus(token, qol, now = Date.now()) {
-  const pending = candidates(token);
-  const [response, signature] = await Promise.all([fetch(INDEX), fetch(`${INDEX}.minisig`, { method: "HEAD" })]);
+  const [response, signature, building, releases] = await Promise.all([
+    fetch(INDEX),
+    fetch(`${INDEX}.minisig`, { method: "HEAD" }),
+    candidates(token),
+    runs(token, "release.yml", 40),
+  ]);
   if (!response.ok) throw new Error(`${INDEX} answered ${response.status}`);
   const listed = new Set(Object.keys((await response.json()).plugins));
-  const building = await pending;
-  const released = plugins(token, qol, listed, building, now);
+  const released = Promise.resolve(plugins(qol, listed, building, releases, now));
   return Promise.all([
     tests(token, now),
     tray(token, building, now),
