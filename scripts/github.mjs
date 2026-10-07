@@ -16,7 +16,7 @@ export async function rest(token, path) {
   return request(token, `${API}/${path}`);
 }
 
-async function graphql(token, query, variables = {}) {
+export async function graphql(token, query, variables = {}) {
   const body = await request(token, `${API}/graphql`, { method: "POST", body: JSON.stringify({ query, variables }) });
   return body.data;
 }

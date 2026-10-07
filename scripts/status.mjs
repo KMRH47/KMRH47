@@ -1,4 +1,4 @@
-import { rest } from "./github.mjs";
+import { graphql, rest } from "./github.mjs";
 
 const REPO = "repos/qol-tools/qol";
 const INDEX = "https://qol-tools.github.io/qol/plugins/index.json";
@@ -93,13 +93,80 @@ async function registry(token, wave, now) {
   const auth = await (await fetch(`${REGISTRY}/token?scope=repository:${PACKAGE}:pull`)).json();
   const tags = await (await fetch(`${REGISTRY}/v2/${PACKAGE}/tags/list?n=10000`, { headers: { authorization: `Bearer ${auth.token}` } })).json();
   if (!Array.isArray(tags.tags)) throw new Error(`ghcr.io listed no tags for ${PACKAGE}`);
-  return { name: "registry", fact: `${tags.tags.length} versions`, pieces: [piece("ghcr.io", list, now)] };
+  return { name: "registry", fact: `${tags.tags.length} plugin versions`, pieces: [piece("ghcr.io", list, now)] };
 }
 
 async function index(token, count, signed, now) {
   const [run] = await runs(token, "plugin-index.yml", 1);
   const pieces = (await jobs(token, run)).map((job) => piece(job.name.split(" ")[0].toLowerCase(), [job], now));
   return { name: "index", fact: `${count} plugins${signed ? ", signed" : ""}`, pieces };
+}
+
+const minutes = (seconds) => `${Math.max(1, Math.round(seconds / 60))} min`;
+const ago = (ms) => {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${Math.max(1, m)} min ago`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} ${Math.round(h / 24) === 1 ? "day" : "days"} ago`;
+};
+const subject = (title) => title.replace(/^[a-z]+(\([^)]*\))?!?: /, "");
+const platformName = (name) => PLATFORMS.reduce((label, [platform, match]) => label.replace(/\(([^)]*)\)/, (all, inner) => (match.test(inner) ? `(${platform})` : all)), name);
+
+async function checks(token, sha, required, now) {
+  const runs = (await rest(token, `${REPO}/commits/${sha}/check-runs?per_page=100`)).check_runs;
+  return runs
+    .map((run) => ({ ...run, state: state(run) }))
+    .filter((run) => run.state !== "skip")
+    .map((run) => ({
+      name: platformName(run.name),
+      state: run.state,
+      time: required.has(run.name) ? "required" : took([[run.started_at, run.status === "completed" ? run.completed_at : null]], now),
+      first: required.has(run.name),
+    }))
+    .sort((a, b) => b.first - a.first || a.name.localeCompare(b.name));
+}
+
+async function queue(token, now) {
+  const [owner, name] = REPO.split("/").slice(1);
+  const data = await graphql(
+    token,
+    `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { mergeQueue(branch: "main") { entries(first: 10) { nodes { state estimatedTimeToMerge headCommit { oid } pullRequest { number title } } } } } }`,
+    { owner, name },
+  );
+  const required = new Set(
+    (await rest(token, `${REPO}/rules/branches/main`))
+      .filter((rule) => rule.type === "required_status_checks")
+      .flatMap((rule) => rule.parameters.required_status_checks.map((check) => check.context)),
+  );
+  const entries = data.repository.mergeQueue?.entries.nodes ?? [];
+  const front = entries[0];
+  const frontChecks = front ? await checks(token, front.headCommit.oid, required, now) : [];
+  const started = frontChecks.length > 0 && front.state === "AWAITING_CHECKS";
+  return {
+    entries: entries.map((entry, index) => ({
+      number: entry.pullRequest.number,
+      title: subject(entry.pullRequest.title),
+      state: index === 0 && started ? "run" : "wait",
+      left: entry.estimatedTimeToMerge ? minutes(entry.estimatedTimeToMerge) : "",
+    })),
+    front: front && { number: front.pullRequest.number, checks: frontChecks },
+  };
+}
+
+async function merged(token, now) {
+  const since = new Date(now - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const pulls = (await rest(token, `${REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=30`))
+    .filter((pull) => pull.merged_at)
+    .sort((a, b) => Date.parse(b.merged_at) - Date.parse(a.merged_at));
+  const count = (await rest(token, `search/issues?q=${encodeURIComponent(`repo:qol-tools/qol is:pr is:merged merged:>=${since}`)}`)).total_count;
+  return {
+    count,
+    pulls: pulls.slice(0, 2).map((pull) => ({ number: pull.number, title: subject(pull.title), ago: ago(now - Date.parse(pull.merged_at)) })),
+  };
+}
+
+export async function buildQueue(token, now = Date.now()) {
+  return { queue: await queue(token, now), merged: await merged(token, now) };
 }
 
 export async function buildStatus(token, qol, now = Date.now()) {
