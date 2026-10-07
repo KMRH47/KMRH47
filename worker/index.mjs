@@ -6,7 +6,7 @@ import { FONT_FILES, typeFromFonts } from "../scripts/type.mjs";
 const FONTS = "https://raw.githubusercontent.com/qol-tools/qol/main/libs/gpui/assets/fonts/";
 const INDEX = "https://qol-tools.github.io/qol/plugins/index.json";
 const FRESH_FOR = 15;
-const SERVE_STALE_FOR = 600;
+const SERVE_STALE_FOR = 86400;
 const TILE = /^\/status-([a-z-]+)\.svg$/;
 
 let type;
