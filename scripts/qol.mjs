@@ -23,7 +23,7 @@ function tables(toml) {
   }));
 }
 
-function pluginSection(toml) {
+export function pluginSection(toml) {
   const blocks = tables(toml);
   const plugin = blocks.find((block) => block.header === "plugin");
   const actions = blocks

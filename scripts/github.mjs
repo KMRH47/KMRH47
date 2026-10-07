@@ -3,7 +3,7 @@ const API = "https://api.github.com";
 async function request(token, url, init = {}) {
   const response = await fetch(url, {
     ...init,
-    headers: { authorization: `bearer ${token}`, "content-type": "application/json", ...init.headers },
+    headers: { authorization: `bearer ${token}`, "content-type": "application/json", "user-agent": "KMRH47-profile", ...init.headers },
   });
   const body = await response.json();
   if (!response.ok || body.errors) {

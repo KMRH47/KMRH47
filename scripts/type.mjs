@@ -31,12 +31,19 @@ function pathData(commands) {
     .join("");
 }
 
+export const FONT_FILES = Object.fromEntries(Object.entries(FACES).map(([face, { file }]) => [face, file]));
+
 export async function loadType(dir) {
-  const fonts = {};
-  for (const [face, { file }] of Object.entries(FACES)) {
+  const buffers = {};
+  for (const [face, file] of Object.entries(FONT_FILES)) {
     const bytes = await readFile(path.join(dir, file));
-    fonts[face] = opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+    buffers[face] = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   }
+  return typeFromFonts(buffers);
+}
+
+export function typeFromFonts(buffers) {
+  const fonts = Object.fromEntries(Object.entries(buffers).map(([face, buffer]) => [face, opentype.parse(buffer)]));
 
   const glyphRun = (face, text) => {
     const font = fonts[face];
