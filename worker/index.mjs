@@ -73,7 +73,7 @@ export default {
     const rendered = await tiles(env, ctx);
     if (!rendered[name]) return new Response("not found", { status: 404 });
     return new Response(rendered[name], {
-      headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "no-cache, max-age=0" },
+      headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "no-store, max-age=0" },
     });
   },
 };
