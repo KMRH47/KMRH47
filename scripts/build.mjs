@@ -6,7 +6,7 @@ import { projectCard, projectsHeader } from "./cards/project.mjs";
 import { screensCard } from "./cards/screens.mjs";
 import { kcdLoadout, kcdShowcase, qolShowcase } from "./cards/showcase.mjs";
 import { stackCard } from "./cards/stack.mjs";
-import { statusCard, statusTiles } from "./cards/status.mjs";
+import { statusTiles } from "./cards/status.mjs";
 import { stars } from "./github.mjs";
 import { PROJECTS } from "./projects.mjs";
 import { STACK } from "./stack.mjs";
@@ -60,7 +60,6 @@ const files = {
   "plugins.svg": pluginsCard(facts, type.document()),
   "screens.svg": screensCard(facts, type.document()),
   "stack.svg": stackCard(STACK, type.document()),
-  "status.svg": statusCard(stages, type.document()),
   ...statusTiles(stages, await buildQueue(token), () => type.document()),
   "projects.svg": projectsHeader("smaller things", "tools I made along the way.", type.document()),
 };

@@ -1,11 +1,7 @@
 import { round } from "../type.mjs";
-import { QOL, qolWindow, svg } from "../svg.mjs";
+import { QOL, svg } from "../svg.mjs";
 
 const WIDTH = 838;
-const PAD = 24;
-const COLUMN = (WIDTH - 2 * PAD) / 5;
-const INNER = COLUMN - 14;
-const TOP = 86;
 const ROW = 21;
 const PIP = 11;
 const PITCH = 15;
@@ -29,7 +25,7 @@ function pip(state, x, y) {
   return `<rect x="${round(x + 1)}" y="${y + 1}" width="${PIP - 2}" height="${PIP - 2}" rx="1.5" fill="none" stroke="${COLOR[state]}" stroke-width="2"/>`;
 }
 
-function row(doc, x, y, { name, time, state, dotted = true, live = state === "run", width = INNER, color }) {
+function row(doc, x, y, { name, time, state, dotted = true, live = state === "run", width, color }) {
   const lead = dotted ? 18 : 0;
   const timeWidth = time ? doc.width("regular", time, 13) + 10 : 0;
   const ink = color ?? (state === "bad" ? QOL.danger : dotted ? QOL.muted : LINE[state]);
@@ -55,35 +51,6 @@ function describe(stage) {
   const off = pieces.filter((item) => item.state !== "ok");
   const summary = off.length ? off.map((item) => `${item.name} ${WORD[item.state]}`).join(", ") : "all passed";
   return `${stage.name} (${stage.fact}): ${summary}`;
-}
-
-export function statusCard(stages, doc) {
-  const parts = [];
-  let deepest = 0;
-  stages.forEach((stage, column) => {
-    const x = PAD + column * COLUMN;
-    parts.push(doc.text("display", stage.name, 36, x, 56, QOL.ink));
-    parts.push(doc.text("medium", stage.fact, 13, x + 2, 77, QOL.accentText));
-    let y = TOP;
-    if (stage.items) {
-      stage.items.forEach((item, index) => {
-        parts.push(pip(item.state, x + 2 + (index % PER_ROW) * PITCH, y + 5 + Math.floor(index / PER_ROW) * PITCH));
-      });
-      y += 5 + Math.ceil(stage.items.length / PER_ROW) * PITCH + 3;
-      for (const line of fold(stage)) {
-        parts.push(row(doc, x + 2, y + 15, line));
-        y += ROW;
-      }
-    } else {
-      for (const item of stage.pieces) {
-        parts.push(row(doc, x + 2, y + 15, item));
-        y += ROW;
-      }
-    }
-    deepest = Math.max(deepest, y);
-  });
-  const height = Math.ceil(deepest + 20);
-  return svg(WIDTH, height, `qol build status. ${stages.map(describe).join("; ")}.`, doc, qolWindow(0, 0, WIDTH, height) + parts.join(""));
 }
 
 const GAP = 8;
