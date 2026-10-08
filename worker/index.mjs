@@ -72,7 +72,7 @@ export default {
     const tile = await env.STATUS.get(env.STATUS.idFromName("qol")).tile(name);
     if (!tile) return new Response("not found", { status: 404 });
     return new Response(tile, {
-      headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "no-store, max-age=0" },
+      headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=15" },
     });
   },
 };
