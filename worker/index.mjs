@@ -6,10 +6,7 @@ import { FONT_FILES, typeFromFonts } from "../scripts/type.mjs";
 
 const FONTS = "https://raw.githubusercontent.com/qol-tools/qol/main/libs/gpui/assets/fonts/";
 const INDEX = "https://qol-tools.github.io/qol/plugins/index.json";
-const FRESH_FOR = 15 * 1000;
-const IDLE_EVERY = 60 * 1000;
-const WATCHED_FOR = 5 * 60 * 1000;
-const WAIT_FOR_FRESH = 3000;
+const REFRESH_EVERY = 15 * 1000;
 const TILE = /^\/status-([a-z-]+)\.svg$/;
 
 let type;
@@ -41,7 +38,6 @@ async function render(token) {
 
 export class Status extends DurableObject {
   snapshot = null;
-  viewed = 0;
   rendering = null;
 
   refresh() {
@@ -58,21 +54,14 @@ export class Status extends DurableObject {
   }
 
   async tile(name) {
-    this.viewed = Date.now();
-    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + FRESH_FOR);
     this.snapshot ??= await this.ctx.storage.get("snapshot");
-    if (!this.snapshot) return (await this.refresh()).tiles[name];
-    if (Date.now() - this.snapshot.at <= 2 * FRESH_FOR) return this.snapshot.tiles[name];
-    const stale = this.snapshot;
-    const fresh = this.refresh().catch(() => stale);
-    const waited = new Promise((resolve) => setTimeout(() => resolve(stale), WAIT_FOR_FRESH));
-    return (await Promise.race([fresh, waited])).tiles[name];
+    if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + REFRESH_EVERY);
+    return (this.snapshot ?? (await this.refresh())).tiles[name];
   }
 
   async alarm() {
     await this.refresh().catch((error) => console.error(error));
-    const watched = Date.now() - this.viewed < WATCHED_FOR;
-    await this.ctx.storage.setAlarm(Date.now() + (watched ? FRESH_FOR : IDLE_EVERY));
+    await this.ctx.storage.setAlarm(Date.now() + REFRESH_EVERY);
   }
 }
 
