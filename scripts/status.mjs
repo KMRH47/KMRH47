@@ -140,12 +140,10 @@ async function index(token, count, signed, now) {
   return { name: "index", fact: `${count} plugins${signed ? ", signed" : ""}`, pieces };
 }
 
-const minutes = (seconds) => `${Math.max(1, Math.round(seconds / 60))} min`;
-const ago = (ms) => {
-  const m = Math.round(ms / 60000);
-  if (m < 60) return `${Math.max(1, m)} min ago`;
-  const h = Math.round(m / 60);
-  return h < 24 ? `${h} h ago` : `${Math.round(h / 24)} ${Math.round(h / 24) === 1 ? "day" : "days"} ago`;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const day = (iso) => {
+  const date = new Date(iso);
+  return `${MONTHS[date.getUTCMonth()]} ${date.getUTCDate()}`;
 };
 const subject = (title) => title.replace(/^[a-z]+(\([^)]*\))?!?: /, "");
 const platformName = (name) => PLATFORMS.reduce((label, [platform, match]) => label.replace(/\(([^)]*)\)/, (all, inner) => (match.test(inner) ? `(${platform})` : all)), name);
@@ -169,7 +167,7 @@ async function queue(token, now) {
   const rules = rest(token, `${REPO}/rules/branches/main`);
   const data = await graphql(
     token,
-    `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { mergeQueue(branch: "main") { entries(first: 10) { nodes { state estimatedTimeToMerge headCommit { oid } pullRequest { number title } } } } } }`,
+    `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { mergeQueue(branch: "main") { entries(first: 10) { nodes { state headCommit { oid } pullRequest { number title } } } } } }`,
     { owner, name },
   );
   const required = new Set(
@@ -186,7 +184,6 @@ async function queue(token, now) {
       number: entry.pullRequest.number,
       title: subject(entry.pullRequest.title),
       state: index === 0 && started ? "run" : "wait",
-      left: entry.estimatedTimeToMerge ? minutes(entry.estimatedTimeToMerge) : "",
     })),
     front: front && { number: front.pullRequest.number, checks: frontChecks },
   };
@@ -201,7 +198,7 @@ async function merged(token, now) {
   const count = (await search).total_count;
   return {
     count,
-    pulls: pulls.slice(0, 2).map((pull) => ({ number: pull.number, title: subject(pull.title), ago: ago(now - Date.parse(pull.merged_at)) })),
+    pulls: pulls.slice(0, 2).map((pull) => ({ number: pull.number, title: subject(pull.title), day: day(pull.merged_at) })),
   };
 }
 

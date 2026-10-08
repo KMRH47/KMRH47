@@ -105,15 +105,15 @@ export function statusTiles(stages, { queue, merged }, document) {
   const inner = width - GAP - 2 * PADX - 2;
   const front = queue.entries[0];
   const queueLines = queue.entries.length
-    ? queue.entries.map((entry) => ({ name: `#${entry.number} ${entry.title}`, time: entry.state === "run" ? `${entry.left} left` : entry.left && `in ${entry.left}`, state: entry.state }))
+    ? queue.entries.map((entry) => ({ name: `#${entry.number} ${entry.title}`, time: entry.state === "run" ? "checking" : "waiting", state: entry.state }))
     : [{ name: "nothing waiting", state: "wait", dotted: false, color: QOL.dim }];
   const checkLines = queue.front?.checks.length
-    ? queue.front.checks.map((check) => ({ name: check.name, time: check.time, state: check.state }))
+    ? queue.front.checks.map((check) => ({ name: check.name, time: check.state === "run" ? "running" : check.state === "wait" ? "" : check.time, state: check.state }))
     : [{ name: front ? "waiting to start" : "idle", state: "wait", dotted: false, color: QOL.dim }];
-  const mergedLines = merged.pulls.map((pull) => ({ name: `#${pull.number} ${pull.title}`, time: pull.ago, state: "ok", live: false }));
+  const mergedLines = merged.pulls.map((pull) => ({ name: `#${pull.number} ${pull.title}`, time: pull.day, state: "ok", live: false }));
   const height = Math.ceil(74 + Math.max(queueLines.length, checkLines.length, mergedLines.length) * ROW + 10 + GAP);
   const bottom = [
-    ["queue", front ? `${queue.entries.length} queued${front.left ? `, next merge in ${front.left}` : ""}` : "empty", queueLines],
+    ["queue", front ? `${queue.entries.length} queued` : "empty", queueLines],
     ["checks", front ? `#${front.number}, merges next` : "nothing to check", checkLines],
     ["merged", `${merged.count} in 30 days`, mergedLines],
   ];
