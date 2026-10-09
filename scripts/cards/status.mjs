@@ -6,8 +6,11 @@ const ROW = 21;
 const PIP = 11;
 const PITCH = 15;
 const PER_ROW = 9;
-const COLOR = { ok: QOL.success, bad: QOL.danger, run: QOL.accent, wait: QOL.dim };
-const LINE = { ok: QOL.muted, bad: QOL.danger, run: QOL.accentText, wait: QOL.dim };
+const GAP = 8;
+const PADX = 14;
+const STORY = 34;
+const LABEL = 28;
+const COLOR = { ok: QOL.success, bad: QOL.danger, run: QOL.accent, wait: QOL.dim, idle: QOL.line };
 const WORD = { ok: "passed", bad: "failed", run: "running", wait: "waiting" };
 
 function dot(state, x, y) {
@@ -21,106 +24,66 @@ function dot(state, x, y) {
 }
 
 function pip(state, x, y) {
-  if (state === "ok" || state === "bad") return `<rect x="${round(x)}" y="${y}" width="${PIP}" height="${PIP}" rx="2" fill="${COLOR[state]}"/>`;
+  if (state === "ok" || state === "bad" || state === "idle") return `<rect x="${round(x)}" y="${y}" width="${PIP}" height="${PIP}" rx="2" fill="${COLOR[state]}"/>`;
   return `<rect x="${round(x + 1)}" y="${y + 1}" width="${PIP - 2}" height="${PIP - 2}" rx="1.5" fill="none" stroke="${COLOR[state]}" stroke-width="2"/>`;
 }
 
-function row(doc, x, y, { name, time, state, dotted = true, live = state === "run", width, color }) {
-  const lead = dotted ? 18 : 0;
+function row(doc, x, y, { name, time, state, note, still, width }) {
+  if (note) return doc.text("regular", doc.fit("regular", name, 13, width), 13, x, y, QOL.dim);
   const timeWidth = time ? doc.width("regular", time, 13) + 10 : 0;
-  const ink = color ?? (state === "bad" ? QOL.danger : dotted ? QOL.muted : LINE[state]);
+  const live = state === "run" && !still;
   return (
-    (dotted ? dot(state, x + 4.5, y - 5) : "") +
-    doc.text("regular", doc.fit("regular", name, 14, width - lead - timeWidth), 14, x + lead, y, ink) +
-    (time ? doc.text("regular", time, 13, x + width, y, live ? QOL.accentText : QOL.dim, { anchor: "end" }) : "")
+    dot(state, x + 4.5, y - 5) +
+    doc.text("regular", doc.fit("regular", name, 14, width - 18 - timeWidth), 14, x + 18, y, state === "bad" ? QOL.danger : QOL.muted) +
+    (time ? doc.text("regular", time, 13, x + width, y, live ? QOL.accentText : state === "bad" ? QOL.danger : QOL.dim, { anchor: "end" }) : "")
   );
 }
 
-function fold({ items, wall }) {
-  const ok = items.filter((item) => item.state === "ok");
-  const bad = items.filter((item) => item.state === "bad");
-  const building = items.length - ok.length - bad.length;
-  const lines = [{ name: `${ok.length} released`, time: wall, state: "ok", dotted: false, live: building > 0 }];
-  if (bad.length) lines.push({ name: `${bad.map((item) => item.name).join(" and ")} failed`, time: "", state: "bad", dotted: false });
-  if (building) lines.push({ name: `${building} still building`, time: "", state: "run", dotted: false });
-  return lines;
-}
-
-function describe(stage) {
-  const pieces = stage.items ?? stage.pieces;
-  const off = pieces.filter((item) => item.state !== "ok");
-  const summary = off.length ? off.map((item) => `${item.name} ${WORD[item.state]}`).join(", ") : "all passed";
-  return `${stage.name} (${stage.fact}): ${summary}`;
-}
-
-const GAP = 8;
-const PADX = 14;
-
-function tileSvg(width, height, label, doc, body) {
-  const inner = `<rect x="${GAP / 2 + 0.5}" y="${GAP / 2 + 0.5}" width="${round(width - GAP - 1)}" height="${height - GAP - 1}" rx="12" fill="${QOL.ground}" stroke="${QOL.line}"/>`;
-  return svg(round(width), height, label, doc, inner + `<g transform="translate(${GAP / 2} ${GAP / 2})">${body}</g>`);
-}
-
-function head(doc, name, fact) {
-  return doc.text("display", name, 36, PADX, 44, QOL.ink) + doc.text("medium", fact, 13, PADX + 2, 65, QOL.accentText);
-}
-
-function stageTile(doc, stage, inner) {
-  const parts = [head(doc, stage.name, stage.fact)];
+function body(doc, tile, inner) {
+  const parts = [doc.text("display", tile.name, 36, PADX, 44, QOL.ink), doc.text("medium", doc.fit("medium", tile.fact, 13, inner), 13, PADX + 2, 65, QOL.accentText)];
   let y = 74;
-  if (stage.items) {
-    stage.items.forEach((item, index) => parts.push(pip(item.state, PADX + 2 + (index % PER_ROW) * PITCH, y + 5 + Math.floor(index / PER_ROW) * PITCH)));
-    y += 5 + Math.ceil(stage.items.length / PER_ROW) * PITCH + 3;
-    for (const line of fold(stage)) {
-      parts.push(row(doc, PADX + 2, y + 15, { ...line, width: inner }));
-      y += ROW;
-    }
-  } else {
-    for (const item of stage.pieces) {
-      parts.push(row(doc, PADX + 2, y + 15, { ...item, width: inner }));
-      y += ROW;
-    }
+  if (tile.squares) {
+    tile.squares.forEach((state, index) => parts.push(pip(state, PADX + 2 + (index % PER_ROW) * PITCH, y + 5 + Math.floor(index / PER_ROW) * PITCH)));
+    y += 5 + Math.ceil(tile.squares.length / PER_ROW) * PITCH + 3;
   }
-  return { body: parts.join(""), bottom: y };
+  for (const line of tile.rows) {
+    parts.push(row(doc, PADX + 2, y + 15, { ...line, width: inner }));
+    y += ROW;
+  }
+  return { markup: parts.join(""), bottom: y };
 }
 
-function lines(doc, list, inner) {
-  return list.map((line, index) => row(doc, PADX + 2, 90 + index * ROW, { ...line, width: inner })).join("");
+function describe(tile) {
+  const lines = tile.rows.filter((line) => !line.note).map((line) => `${line.name} ${line.time || WORD[line.state]}`);
+  return `${tile.name} (${tile.fact})${lines.length ? `: ${lines.join(", ")}` : ""}`;
 }
 
-export function statusTiles(stages, { queue, merged }, document) {
-  const files = {};
-  const topWidth = WIDTH / stages.length;
-  const topInner = topWidth - GAP - 2 * PADX - 2;
-  const drawn = stages.map((stage) => {
-    const doc = document();
-    return { stage, doc, ...stageTile(doc, stage, topInner) };
-  });
-  const topHeight = Math.ceil(Math.max(...drawn.map((tile) => tile.bottom)) + 16 + GAP);
-  for (const { stage, doc, body } of drawn) {
-    files[`status-${stage.name}.svg`] = tileSvg(topWidth, topHeight, `qol ${describe(stage)}.`, doc, body);
-  }
+function strip(height, text, size, ink, face, document) {
+  const doc = document();
+  return svg(WIDTH, height, text, doc, doc.text(face, doc.fit(face, text, size, WIDTH - 2 * PADX), size, PADX, height - 10, ink));
+}
 
-  const width = WIDTH / 3;
+function tileRow(tiles, document) {
+  const width = WIDTH / tiles.length;
   const inner = width - GAP - 2 * PADX - 2;
-  const front = queue.entries[0];
-  const queueLines = queue.entries.length
-    ? queue.entries.map((entry) => ({ name: `#${entry.number} ${entry.title}`, time: entry.state === "run" ? "checking" : "waiting", state: entry.state }))
-    : [{ name: "nothing waiting", state: "wait", dotted: false, color: QOL.dim }];
-  const checkLines = queue.front?.checks.length
-    ? queue.front.checks.map((check) => ({ name: check.name, time: check.state === "run" ? "running" : check.state === "wait" ? "" : check.time, state: check.state }))
-    : [{ name: front ? "waiting to start" : "idle", state: "wait", dotted: false, color: QOL.dim }];
-  const mergedLines = merged.pulls.map((pull) => ({ name: `#${pull.number} ${pull.title}`, time: pull.day, state: "ok", live: false }));
-  const height = Math.ceil(74 + Math.max(queueLines.length, checkLines.length, mergedLines.length) * ROW + 10 + GAP);
-  const bottom = [
-    ["queue", front ? `${queue.entries.length} queued` : "empty", queueLines],
-    ["checks", front ? `#${front.number}, merges next` : "nothing to check", checkLines],
-    ["merged", `${merged.count} in 30 days`, mergedLines],
-  ];
-  for (const [name, fact, list] of bottom) {
+  const drawn = tiles.map((tile) => {
     const doc = document();
-    const label = `qol ${name} (${fact}): ${list.map((line) => line.name).join(", ")}`;
-    files[`status-${name}.svg`] = tileSvg(width, height, label, doc, head(doc, name, fact) + lines(doc, list, inner));
-  }
-  return files;
+    return { tile, doc, ...body(doc, tile, inner) };
+  });
+  const height = Math.ceil(Math.max(...drawn.map((item) => item.bottom)) + 16 + GAP);
+  return drawn.map(({ tile, doc, markup }) => {
+    const frame = `<rect x="${GAP / 2 + 0.5}" y="${GAP / 2 + 0.5}" width="${round(width - GAP - 1)}" height="${height - GAP - 1}" rx="12" fill="${QOL.ground}" stroke="${QOL.line}"/>`;
+    return [`status-${tile.name.toLowerCase()}.svg`, svg(round(width), height, `qol ${describe(tile)}.`, doc, frame + `<g transform="translate(${GAP / 2} ${GAP / 2})">${markup}</g>`)];
+  });
+}
+
+export function statusTiles(board, document) {
+  return Object.fromEntries([
+    ["status-story.svg", strip(STORY, board.story, 15, QOL.muted, "regular", document)],
+    ...tileRow(board.change, document),
+    ["status-lane-plugins.svg", strip(LABEL, "then each plugin with a new version", 13, QOL.dim, "medium", document)],
+    ...tileRow(board.plugins, document),
+    ["status-lane-tray.svg", strip(LABEL, "and qol-tray when it has a new version", 13, QOL.dim, "medium", document)],
+    ...tileRow(board.tray, document),
+  ]);
 }

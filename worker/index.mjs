@@ -1,7 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { statusTiles } from "../scripts/cards/status.mjs";
 import { pluginSection } from "../scripts/qol.mjs";
-import { buildQueue, buildStatus } from "../scripts/status.mjs";
+import { buildBoard } from "../scripts/status.mjs";
 import { FONT_FILES, typeFromFonts } from "../scripts/type.mjs";
 
 const FONTS = "https://raw.githubusercontent.com/qol-tools/qol/main/libs/gpui/assets/fonts/";
@@ -32,8 +32,7 @@ async function plugins() {
 
 async function render(token) {
   type ??= await loadType();
-  const [stages, queue] = await Promise.all([plugins().then((list) => buildStatus(token, { plugins: list })), buildQueue(token)]);
-  return statusTiles(stages, queue, () => type.document());
+  return statusTiles(await buildBoard(token, { plugins: await plugins() }), () => type.document());
 }
 
 export class Status extends DurableObject {
