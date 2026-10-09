@@ -122,12 +122,9 @@ async function merged(token, now) {
     .sort((a, b) => Date.parse(b.merged_at) - Date.parse(a.merged_at));
   const count = (await search).total_count;
   return {
-    tile: {
-      name: "merged",
-      fact: `${count} in 30 days`,
-      rows: pulls.slice(0, 2).map((pull) => ({ name: `#${pull.number} ${subject(pull.title)}`, state: "ok", time: day(pull.merged_at), still: true })),
-    },
-    pulls,
+    name: "merged",
+    fact: `${count} in 30 days`,
+    rows: pulls.slice(0, 2).map((pull) => ({ name: `#${pull.number} ${subject(pull.title)}`, state: "ok", time: day(pull.merged_at), still: true })),
   };
 }
 
@@ -137,7 +134,7 @@ function dispatchedBy(run, list) {
   return list.filter((item) => item.event === "workflow_dispatch" && Date.parse(item.created_at) >= start && Date.parse(item.created_at) <= end);
 }
 
-async function versioning(token, releases, trays, now) {
+async function versioning(token, trays, now) {
   const main = (await runs(token, "ci.yml", 10, "&event=push&branch=main")).find((run) => state(run) !== "skip");
   if (!main) throw new Error("no tests run on main");
   const run = (await runs(token, "plugin-version.yml", 20, "&event=workflow_run")).find((item) => item.head_sha === main.head_sha && state(item) !== "skip");
@@ -145,7 +142,6 @@ async function versioning(token, releases, trays, now) {
   const named = (match) => list.filter((job) => match.test(job.name) && state(job) !== "skip");
   const candidates = named(/^Candidate /);
   const tags = [...new Set(candidates.map((job) => job.name.match(/^Candidate (qol-[a-z0-9-]+?-v\d+\.\d+\.\d+) \(/)?.[1]).filter(Boolean))];
-  const plugins = run ? dispatchedBy(run, releases) : [];
   const tray = run ? dispatchedBy(run, trays)[0] : undefined;
   const trayTag = tray?.display_title.match(/qol-tray-v\d+\.\d+\.\d+/)?.[0] ?? (candidates.some((job) => job.name.startsWith("Candidate qol-tray")) ? "qol-tray" : null);
   const versions = [...(trayTag ? [trayTag] : []), ...tags];
@@ -153,21 +149,15 @@ async function versioning(token, releases, trays, now) {
   const decided = state({ status: named(/^Prepare /)[0]?.status, conclusion: named(/^Prepare /)[0]?.conclusion }) === "ok";
   const fact = !run ? (state(main) === "ok" ? "starting" : "waits for main's tests") : !decided ? "choosing new versions" : versions.length ? `${versions.length} new version${versions.length === 1 ? "" : "s"}` : "no new versions";
   return {
-    tile: {
-      name: "versions",
-      fact,
-      rows: [
-        { name: "tests on main", state: state(main), time: took([runSpan(main)], now) },
-        piece("what changed", named(/^(Plan binary probes|Probe )/), now),
-        piece("new numbers", named(/^Prepare /), now),
-        piece("trial builds", candidates, now),
-        piece("tags", tagged, now),
-      ],
-    },
-    main,
-    run,
-    versions,
-    dispatched: [...plugins, ...(tray ? [tray] : [])],
+    name: "versions",
+    fact,
+    rows: [
+      { name: "tests on main", state: state(main), time: took([runSpan(main)], now) },
+      piece("what changed", named(/^(Plan binary probes|Probe )/), now),
+      piece("new numbers", named(/^Prepare /), now),
+      piece("trial builds", candidates, now),
+      piece("tags", tagged, now),
+    ],
   };
 }
 
@@ -253,27 +243,9 @@ async function index(token, count, signed, now) {
     if (item !== run) rows = rows.map((line) => ({ ...line, state: "wait", time: "" }));
     break;
   }
-  return { tile: { name: "index", fact: signed ? `${count} plugins for users` : `${count} plugins, unsigned`, rows }, run };
+  return { name: "index", fact: signed ? `${count} plugins for users` : `${count} plugins, unsigned`, rows };
 }
 
-function story({ main, run, versions, dispatched }, pulls, indexRun) {
-  const pull = pulls.find((item) => item.merge_commit_sha === main.head_sha);
-  const what = pull ? `#${pull.number} merged ${day(pull.merged_at)}` : `main ${main.head_sha.slice(0, 7)}`;
-  const tests = state(main);
-  if (tests === "bad") return `${what}, but main failed its tests.`;
-  if (tests !== "ok") return `${what}; main is being tested.`;
-  if (!run || state(run) === "wait") return `${what}; new versions are next.`;
-  if (state(run) === "bad") return `${what}, but choosing its versions failed.`;
-  if (!versions.length) return state(run) === "ok" ? `${what} and needed no new versions.` : `${what}; choosing new versions.`;
-  const names = versions.length <= 2 ? listed(versions.map(release)) : `${versions.length} new versions`;
-  const states = dispatched.map(state);
-  if (states.includes("bad")) return `${what}, became ${names}, but a build failed.`;
-  const plugins = dispatched.filter((item) => item.path.endsWith("/release.yml"));
-  const lastPlugin = Math.max(0, ...plugins.map((item) => Date.parse(item.updated_at)));
-  const listedForUsers = !plugins.length || (state(indexRun) === "ok" && Date.parse(indexRun.updated_at) >= lastPlugin);
-  if (dispatched.length && states.every((item) => item === "ok") && listedForUsers) return `${what}, became ${names}, and reached users.`;
-  return `${what}, became ${names}, now on their way to users.`;
-}
 
 export async function buildBoard(token, qol, now = Date.now()) {
   const [response, signature, releases, trays] = await Promise.all([
@@ -288,15 +260,14 @@ export async function buildBoard(token, qol, now = Date.now()) {
     pullRequests(token),
     mergeQueue(token, now),
     merged(token, now),
-    versioning(token, releases, trays, now),
+    versioning(token, trays, now),
     trayLane(token, now),
     registry(token, plugins.wave, now),
     index(token, Object.keys((await response.json()).plugins).length, signature.ok, now),
   ]);
   return {
-    story: story(versions, landed.pulls, published.run),
-    change: [prs, queue, landed.tile, versions.tile],
-    plugins: [plugins.tile, store, published.tile],
+    change: [prs, queue, landed, versions],
+    plugins: [plugins.tile, store, published],
     tray: [tray.tray, tray.released],
   };
 }

@@ -8,8 +8,6 @@ const PITCH = 15;
 const PER_ROW = 9;
 const GAP = 8;
 const PADX = 14;
-const STORY = 34;
-const LABEL = 28;
 const COLOR = { ok: QOL.success, bad: QOL.danger, run: QOL.accent, wait: QOL.dim, idle: QOL.line };
 const WORD = { ok: "passed", bad: "failed", run: "running", wait: "waiting" };
 
@@ -58,10 +56,6 @@ function describe(tile) {
   return `${tile.name} (${tile.fact})${lines.length ? `: ${lines.join(", ")}` : ""}`;
 }
 
-function strip(height, text, size, ink, face, document) {
-  const doc = document();
-  return svg(WIDTH, height, text, doc, doc.text(face, doc.fit(face, text, size, WIDTH - 2 * PADX), size, PADX, height - 10, ink));
-}
 
 function tileRow(tiles, document) {
   const width = WIDTH / tiles.length;
@@ -79,11 +73,8 @@ function tileRow(tiles, document) {
 
 export function statusTiles(board, document) {
   return Object.fromEntries([
-    ["status-story.svg", strip(STORY, board.story, 15, QOL.muted, "regular", document)],
     ...tileRow(board.change, document),
-    ["status-lane-plugins.svg", strip(LABEL, "then each plugin with a new version", 13, QOL.dim, "medium", document)],
     ...tileRow(board.plugins, document),
-    ["status-lane-tray.svg", strip(LABEL, "and qol-tray when it has a new version", 13, QOL.dim, "medium", document)],
     ...tileRow(board.tray, document),
   ]);
 }
