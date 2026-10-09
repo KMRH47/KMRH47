@@ -247,8 +247,9 @@ async function index(token, count, signed, now) {
   const run = recent[0];
   let rows = [];
   for (const item of recent) {
-    rows = (await jobs(token, item)).map((job) => piece(INDEX_STEP[job.name.split(" ")[0].toLowerCase()] ?? job.name, [job], now));
-    if (!rows.length) continue;
+    const list = await jobs(token, item);
+    if (!list.length) continue;
+    rows = Object.entries(INDEX_STEP).map(([job, step]) => piece(step, list.filter((entry) => entry.name.split(" ")[0].toLowerCase() === job), now));
     if (item !== run) rows = rows.map((line) => ({ ...line, state: "wait", time: "" }));
     break;
   }
