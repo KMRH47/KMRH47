@@ -7,6 +7,7 @@ const PACKAGE = "qol-tools/plugins";
 const CANDIDATE = /^Candidate (qol-[a-z0-9-]+?-v\d+\.\d+\.\d+) \(/;
 const TRAY_CANDIDATE = /^Candidate qol-tray \(/;
 const DISPATCH_SLACK = 2 * 60 * 1000;
+const JOB_PAGE = 50;
 const RANK = { ok: 0, wait: 1, run: 2, bad: 3 };
 const PLATFORMS = [
   ["Linux", /ubuntu|linux/i],
@@ -20,7 +21,12 @@ const finished = new Map();
 async function jobs(token, run) {
   const key = `${run.id}/${run.run_attempt}`;
   if (finished.has(key)) return finished.get(key);
-  const list = (await rest(token, `${REPO}/actions/runs/${run.id}/jobs?per_page=100`)).jobs;
+  const list = [];
+  for (let page = 1; ; page++) {
+    const body = await rest(token, `${REPO}/actions/runs/${run.id}/jobs?per_page=${JOB_PAGE}&page=${page}`);
+    list.push(...body.jobs);
+    if (body.jobs.length < JOB_PAGE || list.length >= body.total_count) break;
+  }
   if (run.status === "completed") finished.set(key, list);
   return list;
 }
