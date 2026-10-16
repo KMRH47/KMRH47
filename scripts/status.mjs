@@ -4,7 +4,8 @@ const REPO = "repos/qol-tools/qol";
 const INDEX = "https://qol-tools.github.io/qol/plugins/index.json";
 const REGISTRY = "https://ghcr.io";
 const PACKAGE = "qol-tools/plugins";
-const WAVE = 10 * 60 * 1000;
+const CANDIDATE = /^Candidate (qol-[a-z0-9-]+?-v\d+\.\d+\.\d+) \(/;
+const TRAY_CANDIDATE = /^Candidate qol-tray \(/;
 const DISPATCH_SLACK = 2 * 60 * 1000;
 const RANK = { ok: 0, wait: 1, run: 2, bad: 3 };
 const PLATFORMS = [
@@ -128,20 +129,28 @@ async function merged(token, now) {
   };
 }
 
+async function newestBuilding(token, versionRuns, match) {
+  for (const run of versionRuns) {
+    const list = (await jobs(token, run)).filter((job) => match.test(job.name) && state(job) !== "skip");
+    if (list.length) return { run, list };
+  }
+  return { run: null, list: [] };
+}
+
 function dispatchedBy(run, list) {
   const start = Date.parse(run.run_started_at);
   const end = run.status === "completed" ? Date.parse(run.updated_at) + DISPATCH_SLACK : Infinity;
   return list.filter((item) => item.event === "workflow_dispatch" && Date.parse(item.created_at) >= start && Date.parse(item.created_at) <= end);
 }
 
-async function versioning(token, trays, now) {
+async function versioning(token, versionRuns, trays, now) {
   const main = (await runs(token, "ci.yml", 10, "&event=push&branch=main")).find((run) => state(run) !== "skip");
   if (!main) throw new Error("no tests run on main");
-  const run = (await runs(token, "plugin-version.yml", 20, "&event=workflow_run")).find((item) => item.head_sha === main.head_sha && state(item) !== "skip");
+  const run = versionRuns.find((item) => item.head_sha === main.head_sha);
   const list = run ? await jobs(token, run) : [];
   const named = (match) => list.filter((job) => match.test(job.name) && state(job) !== "skip");
   const candidates = named(/^Candidate /);
-  const tags = [...new Set(candidates.map((job) => job.name.match(/^Candidate (qol-[a-z0-9-]+?-v\d+\.\d+\.\d+) \(/)?.[1]).filter(Boolean))];
+  const tags = [...new Set(candidates.map((job) => job.name.match(CANDIDATE)?.[1]).filter(Boolean))];
   const tray = run ? dispatchedBy(run, trays)[0] : undefined;
   const trayTag = tray?.display_title.match(/qol-tray-v\d+\.\d+\.\d+/)?.[0] ?? (candidates.some((job) => job.name.startsWith("Candidate qol-tray")) ? "qol-tray" : null);
   const versions = [...(trayTag ? [trayTag] : []), ...tags];
@@ -153,25 +162,22 @@ async function versioning(token, trays, now) {
     fact,
     rows: [
       { name: "tests on main", state: state(main), time: took([runSpan(main)], now) },
-      piece("what changed", named(/^(Plan binary probes|Probe )/), now),
       piece("new numbers", named(/^Prepare /), now),
-      piece("trial builds", candidates, now),
+      piece("builds", candidates, now),
       piece("tags", tagged, now),
     ],
   };
 }
 
-async function trayLane(token, now) {
-  const [run, previous] = await runs(token, "qol-tray-release.yml", 2);
-  const version = run.display_title.match(/qol-tray-v(\d+\.\d+\.\d+)/)?.[1];
-  if (!version) throw new Error(`qol-tray release run ${run.id} names no version: ${run.display_title}`);
-  let list = await jobs(token, run);
-  if (!list.some((job) => job.name.startsWith("Build ")) && previous) list = (await jobs(token, previous)).map((job) => ({ ...job, status: run.status, conclusion: run.conclusion, started_at: null }));
-  const builds = list
-    .filter((job) => job.name.startsWith("Build ") || (job.name.startsWith("Verify ") && ["bad", "run"].includes(state(job))))
+async function trayLane(token, versionRuns, trays, now) {
+  const found = await newestBuilding(token, versionRuns, TRAY_CANDIDATE);
+  const run = found.run ? dispatchedBy(found.run, trays)[0] : trays[0];
+  const version = run?.display_title.match(/qol-tray-v(\d+\.\d+\.\d+)/)?.[1] ?? "the next version";
+  const builds = found.list
     .sort((a, b) => platform(a.name) - platform(b.name))
-    .map((job) => piece(job.name.replace(/^Build /, "").replace(/ release$/, ""), [job], now));
-  const publish = piece("GitHub release", list.filter((job) => job.name === "Create GitHub Release"), now);
+    .map((job) => piece(PLATFORMS[platform(job.name)][0], [job], now));
+  const steps = run ? await jobs(token, run) : [];
+  const publish = piece("GitHub release", steps.filter((job) => job.name === "Create GitHub Release" || job.name.startsWith("Verify ")), now);
   const built = worst(builds.map((item) => item.state));
   const releasedFact = {
     ok: `users can download ${version}`,
@@ -186,20 +192,22 @@ async function trayLane(token, now) {
   };
 }
 
-function pluginLane(qol, releases, now) {
-  const latest = new Map();
-  for (const run of releases) {
-    const tag = run.display_title.match(/^Release (qol-[a-z0-9-]+-v\d+\.\d+\.\d+)$/)?.[1];
-    const id = tag?.replace(/-v\d+\.\d+\.\d+$/, "");
-    if (id && !latest.has(id)) latest.set(id, { run, tag });
+async function pluginLane(token, qol, versionRuns, releases, now) {
+  const found = await newestBuilding(token, versionRuns, CANDIDATE);
+  const byPlugin = new Map();
+  for (const job of found.list) {
+    const tag = job.name.match(CANDIDATE)[1];
+    const id = tag.replace(/-v\d+\.\d+\.\d+$/, "");
+    byPlugin.set(id, { tag, list: [...(byPlugin.get(id)?.list ?? []), job] });
   }
-  const newest = Math.max(...[...latest.values()].map(({ run }) => Date.parse(run.created_at)));
   const items = qol.plugins.map((plugin) => {
-    const found = latest.get(plugin.id);
-    if (!found) return { name: plugin.name, state: "idle" };
-    const fresh = Date.parse(found.run.created_at) > newest - WAVE;
-    const runState = state(found.run);
-    return { name: plugin.name, state: fresh ? runState : runState === "ok" ? "idle" : runState, run: found.run, tag: found.tag, fresh };
+    const wave = byPlugin.get(plugin.id);
+    if (!wave) {
+      const last = releases.find((run) => run.display_title.startsWith(`Release ${plugin.id}-v`));
+      return { name: plugin.name, state: last && state(last) === "bad" ? "bad" : "idle" };
+    }
+    const run = releases.find((item) => item.display_title === `Release ${wave.tag}`);
+    return { name: plugin.name, state: worst(wave.list.map(state)), list: wave.list, run, tag: wave.tag, fresh: true };
   });
   const wave = items.filter((item) => item.fresh);
   const count = (s) => wave.filter((item) => item.state === s).length;
@@ -212,15 +220,15 @@ function pluginLane(qol, releases, now) {
       ? `${release(wave[0].tag)} built`
       : `${built} new version${built === 1 ? "" : "s"} built`;
   const rows = [];
-  if (built) rows.push({ name: built === 1 ? wave.find((item) => item.state === "ok").tag.replace(/-v.*/, "") : `${built} built`, state: "ok", time: took(wave.filter((item) => item.state === "ok").map((item) => runSpan(item.run)), now) });
-  if (building) rows.push({ name: `${building} building`, state: "run", time: took(wave.filter((item) => item.state === "run").map((item) => runSpan(item.run)), now) });
+  if (built) rows.push({ name: built === 1 ? wave.find((item) => item.state === "ok").tag.replace(/-v.*/, "") : `${built} built`, state: "ok", time: took(wave.filter((item) => item.state === "ok").flatMap((item) => item.list.map(jobSpan)), now) });
+  if (building) rows.push({ name: `${building} building`, state: "run", time: took(wave.filter((item) => item.state === "run").flatMap((item) => item.list.map(jobSpan)), now) });
   if (failed.length) rows.push({ name: `${listed(failed.map((item) => item.name))} failed`, state: "bad", time: "" });
   if (items.length > wave.length) rows.push({ name: `${items.length - wave.length} had no change`, note: true });
   return { tile: { name: "plugins", fact, squares: items.map((item) => item.state), rows }, wave };
 }
 
 async function registry(token, wave, now) {
-  const pushes = (await Promise.all(wave.map((item) => jobs(token, item.run))))
+  const pushes = (await Promise.all(wave.filter((item) => item.run).map((item) => jobs(token, item.run))))
     .flat()
     .filter((job) => job.name === "Publish registry artifact" && state(job) !== "skip");
   const auth = await (await fetch(`${REGISTRY}/token?scope=repository:${PACKAGE}:pull`)).json();
@@ -248,20 +256,21 @@ async function index(token, count, signed, now) {
 
 
 export async function buildBoard(token, qol, now = Date.now()) {
-  const [response, signature, releases, trays] = await Promise.all([
+  const [response, signature, releases, trays, versionRuns] = await Promise.all([
     fetch(INDEX),
     fetch(`${INDEX}.minisig`, { method: "HEAD" }),
     runs(token, "release.yml", 60),
     runs(token, "qol-tray-release.yml", 5),
+    runs(token, "plugin-version.yml", 50, "&event=workflow_run").then((list) => list.filter((run) => state(run) !== "skip")),
   ]);
   if (!response.ok) throw new Error(`${INDEX} answered ${response.status}`);
-  const plugins = pluginLane(qol, releases, now);
+  const plugins = await pluginLane(token, qol, versionRuns, releases, now);
   const [prs, queue, landed, versions, tray, store, published] = await Promise.all([
     pullRequests(token),
     mergeQueue(token, now),
     merged(token, now),
-    versioning(token, trays, now),
-    trayLane(token, now),
+    versioning(token, versionRuns, trays, now),
+    trayLane(token, versionRuns, trays, now),
     registry(token, plugins.wave, now),
     index(token, Object.keys((await response.json()).plugins).length, signature.ok, now),
   ]);
