@@ -17,17 +17,17 @@ const PLATFORMS = [
 
 const runs = async (token, workflow, count, filter = "") =>
   (await rest(token, `${REPO}/actions/workflows/${workflow}/runs?per_page=${count}${filter}`)).workflow_runs;
-const finished = new Map();
+const settled = new Map();
 async function jobs(token, run) {
   const key = `${run.id}/${run.run_attempt}`;
-  if (finished.has(key)) return finished.get(key);
+  if (settled.has(key)) return settled.get(key);
   const list = [];
   for (let page = 1; ; page++) {
     const body = await rest(token, `${REPO}/actions/runs/${run.id}/jobs?per_page=${JOB_PAGE}&page=${page}`);
     list.push(...body.jobs);
     if (body.jobs.length < JOB_PAGE || list.length >= body.total_count) break;
   }
-  if (run.status === "completed") finished.set(key, list);
+  if (run.status === "completed") settled.set(key, list);
   return list;
 }
 
@@ -146,19 +146,37 @@ async function mergeOf(token, run) {
   return { run, name: pull ? `#${pull}` : run?.head_sha.slice(0, 7), named, decided: state(named(/^Prepare /)[0] ?? {}) === "ok" };
 }
 
-async function currentMerge(token, versionRuns) {
-  const main = (await runs(token, "ci.yml", 10, "&event=push&branch=main")).find((run) => state(run) !== "skip");
-  if (!main) throw new Error("no tests run on main");
-  return { main, ...(await mergeOf(token, versionRuns.find((item) => item.head_sha === main.head_sha))) };
+function history(token, versionRuns) {
+  const seen = [];
+  return {
+    seen,
+    async find(test) {
+      for (let k = 0; k < versionRuns.length; k++) {
+        seen[k] ??= await mergeOf(token, versionRuns[k]);
+        if (await test(seen[k])) return seen[k];
+      }
+      return null;
+    },
+  };
 }
 
-async function lastMerge(token, versionRuns, current, match) {
-  for (const run of versionRuns.slice(current.run ? versionRuns.indexOf(current.run) + 1 : 0)) {
-    const merge = await mergeOf(token, run);
-    if (merge.named(match).length) return merge;
-  }
-  return null;
+async function currentMerge(token, past, versionRuns) {
+  const main = (await runs(token, "ci.yml", 10, "&event=push&branch=main")).find((run) => state(run) !== "skip");
+  if (!main) throw new Error("no tests run on main");
+  const run = versionRuns.find((item) => item.head_sha === main.head_sha);
+  return { main, ...(run ? await past.find((merge) => merge.run.id === run.id) : await mergeOf(token, null)) };
 }
+
+const finished = (list) => list.length > 0 && list.every((job) => state(job) === "ok" || state(job) === "bad");
+function newer(merges, shown) {
+  const at = merges.findIndex((merge) => merge.run.id === shown.run?.id);
+  return at < 0 ? merges : merges.slice(0, at);
+}
+const replaced = (merges, shown, match) => newer(merges, shown).some((merge) => merge.decided && merge.named(match).length > 0);
+const look = (merges, current, shown, done, match) => ({
+  past: done && shown.run?.id !== current.run?.id,
+  stale: done && replaced(merges, shown, match),
+});
 
 function dispatchedBy(run, list) {
   const start = Date.parse(run.run_started_at);
@@ -196,26 +214,38 @@ async function trayOf(token, merge, trays, now) {
   return { merge, list, version, builds, steps, publish: piece("GitHub release", steps, now) };
 }
 
-async function trayLane(token, merge, last, trays, now) {
-  const current = await trayOf(token, merge, trays, now);
-  const before = last ? await trayOf(token, last, trays, now) : current;
+async function trayLane(token, past, current, trays, now) {
   const built = (lane) => worst(lane.builds.map((item) => item.state));
-  const tray = started(current.list) || !last
-    ? { name: "qol-tray", fact: built(current) === "ok" ? `${current.version} built` : built(current) === "bad" ? `${current.version} failed to build` : `building ${current.version}`, rows: current.builds }
-    : { name: "qol-tray", fact: `${last.name} built ${before.version}`, rows: before.builds, stale: true };
-  const releasing = started(current.steps) || !last ? current : null;
-  const released = releasing
-    ? {
-        name: "released",
-        fact: {
-          ok: `users can download ${current.version}`,
-          run: `releasing ${current.version}`,
-          bad: `${current.version} did not release`,
-          wait: built(current) === "bad" ? `${current.version} did not build` : `${current.version} waits for its builds`,
-        }[current.publish.state],
-        rows: [current.publish],
-      }
-    : { name: "released", fact: `${before.version} out since ${last.name}`, rows: [before.publish], stale: true };
+  const builder = (await past.find((merge) => started(merge.named(TRAY_CANDIDATE)))) ?? current;
+  const lane = await trayOf(token, builder, trays, now);
+  const building = look(past.seen, current, builder, finished(lane.list), TRAY_CANDIDATE);
+  const tray = {
+    name: "qol-tray",
+    fact: building.past ? `${builder.name} built ${lane.version}` : built(lane) === "ok" ? `${lane.version} built` : built(lane) === "bad" ? `${lane.version} failed to build` : `building ${lane.version}`,
+    rows: lane.builds,
+    stale: building.stale,
+  };
+  let out = lane;
+  await past.find(async (merge) => {
+    if (!merge.named(TRAY_CANDIDATE).length) return false;
+    const candidate = merge === builder ? lane : await trayOf(token, merge, trays, now);
+    if (started(candidate.steps)) out = candidate;
+    return started(candidate.steps);
+  });
+  const releasing = look(past.seen, current, out.merge, out.publish.state === "ok" || out.publish.state === "bad", TRAY_CANDIDATE);
+  const released = {
+    name: "released",
+    fact: releasing.past
+      ? `${out.version} out since ${out.merge.name}`
+      : {
+          ok: `users can download ${out.version}`,
+          run: `releasing ${out.version}`,
+          bad: `${out.version} did not release`,
+          wait: built(out) === "bad" ? `${out.version} did not build` : `${out.version} waits for its builds`,
+        }[out.publish.state],
+    rows: [out.publish],
+    stale: releasing.stale,
+  };
   return { tray, released };
 }
 
@@ -257,7 +287,7 @@ const grouped = (wave, row) =>
     .flatMap((pull) => [{ name: pull, note: true }, ...wave.filter((item) => item.pull === pull).map(row)]);
 const versionOf = (item) => release(item.tag).replace(/^qol-/, "");
 
-function pluginLane(qol, merge, wave, releases, now, stale) {
+function pluginLane(qol, merge, wave, releases, now, past) {
   const byPlugin = new Map(wave.map((item) => [item.id, item]));
   const items = qol.plugins.map((plugin) => {
     const fresh = byPlugin.get(plugin.id);
@@ -271,7 +301,7 @@ function pluginLane(qol, merge, wave, releases, now, stale) {
   const building = count("run") + count("wait");
   const failed = wave.filter((item) => item.state === "bad");
   const name = (item) => qol.plugins.find((plugin) => plugin.id === item.id)?.name ?? item.id;
-  const fact = stale
+  const fact = past
     ? `${merge.name} built ${plural(wave.length, "version")}`
     : !merge.decided
       ? "waits for new versions"
@@ -288,7 +318,7 @@ function pluginLane(qol, merge, wave, releases, now, stale) {
   if (building) rows.push({ name: `${building} building`, state: "run", time: took(wave.filter((item) => item.state === "run").flatMap((item) => item.list.map(jobSpan)), now) });
   if (failed.length && wave.length > LISTED) rows.push({ name: `${listed(failed.map(name))} failed`, state: "bad", time: "" });
   if (merge.decided && items.length > wave.length) rows.push({ name: `${items.length - wave.length} had no change`, note: true });
-  return { name: "plugins", fact, squares: items.map((item) => item.state), rows, stale };
+  return { name: "plugins", fact, squares: items.map((item) => item.state), rows };
 }
 
 const pushesOf = async (token, wave) =>
@@ -302,31 +332,35 @@ async function stored(token, wave, name, now) {
   return grouped(wave, (item) => piece(versionOf(item), pushes[wave.indexOf(item)], now));
 }
 
-async function registry(token, merge, wave, last, lastWave, now) {
+async function registry(token, merge, wave, shown, now) {
   const pushes = await pushesOf(token, wave);
-  if (!started(pushes) && last) {
-    return { name: "registry", fact: `${last.name} stored ${plural(lastWave.length, "version")}`, rows: await stored(token, lastWave, `${plural(lastWave.length, "version")} stored`, now), stale: true };
-  }
+  const name = !merge.decided ? "new versions stored" : wave.length === 1 ? `${release(wave[0].tag)} stored` : `${plural(wave.length, "new version")} stored`;
+  const rows = wave.length ? await stored(token, wave, name, now) : [piece(name, pushes, now)];
+  if (shown.past) return { name: "registry", fact: `${merge.name} stored ${plural(wave.length, "version")}`, rows, stale: shown.stale };
   const auth = await (await fetch(`${REGISTRY}/token?scope=repository:${PACKAGE}:pull`)).json();
   const tags = await (await fetch(`${REGISTRY}/v2/${PACKAGE}/tags/list?n=10000`, { headers: { authorization: `Bearer ${auth.token}` } })).json();
   if (!Array.isArray(tags.tags)) throw new Error(`ghcr.io listed no tags for ${PACKAGE}`);
-  const name = !merge.decided ? "new versions stored" : wave.length === 1 ? `${release(wave[0].tag)} stored` : `${plural(wave.length, "new version")} stored`;
-  return { name: "registry", fact: `${tags.tags.length} versions on ghcr.io`, rows: wave.length ? await stored(token, wave, name, now) : [piece(name, pushes, now)] };
+  return { name: "registry", fact: `${tags.tags.length} versions on ghcr.io`, rows, stale: shown.stale };
 }
 
 const INDEX_STEP = { build: "list", sign: "sign", deploy: "publish" };
 
-async function index(token, merge, last, count, signed, now) {
-  const since = merge.run ? Date.parse(merge.run.run_started_at) : Infinity;
-  const recent = await runs(token, "plugin-index.yml", 10);
-  const steps = async (run) => {
-    const list = run ? await jobs(token, run) : [];
-    return { list, rows: Object.entries(INDEX_STEP).map(([job, step]) => piece(step, list.filter((entry) => entry.name.split(" ")[0].toLowerCase() === job), now)) };
-  };
-  const current = await steps(recent.find((item) => Date.parse(item.created_at) >= since));
-  if (started(current.list) || !last) return { name: "index", fact: signed ? `${count} plugins for users` : `${count} plugins, unsigned`, rows: current.rows };
-  const before = await steps(recent.find((item) => Date.parse(item.created_at) < since && state(item) !== "skip"));
-  return { name: "index", fact: `${last.name} published`, rows: before.rows, stale: true };
+async function index(token, past, current, count, signed, now) {
+  const recent = (await runs(token, "plugin-index.yml", 10)).filter((run) => state(run) !== "skip");
+  let run = null;
+  let list = [];
+  for (const item of recent) {
+    list = await jobs(token, item);
+    if (started(list)) {
+      run = item;
+      break;
+    }
+  }
+  const rows = Object.entries(INDEX_STEP).map(([job, step]) => piece(step, (run ? list : []).filter((entry) => entry.name.split(" ")[0].toLowerCase() === job), now));
+  const owner = run ? ((await past.find((merge) => Date.parse(merge.run.run_started_at) <= Date.parse(run.created_at))) ?? current) : current;
+  const shown = look(past.seen, current, owner, run?.status === "completed", CANDIDATE);
+  const fact = shown.past ? `${owner.name} published` : signed ? `${count} plugins for users` : `${count} plugins, unsigned`;
+  return { name: "index", fact, rows, stale: shown.stale };
 }
 
 export async function buildBoard(token, qol, now = Date.now()) {
@@ -335,24 +369,27 @@ export async function buildBoard(token, qol, now = Date.now()) {
     fetch(`${INDEX}.minisig`, { method: "HEAD" }),
     runs(token, "release.yml", 60),
     runs(token, "qol-tray-release.yml", 10),
-    runs(token, "plugin-version.yml", 50, "&event=workflow_run").then((list) => list.filter((run) => state(run) !== "skip")),
+    runs(token, "plugin-version.yml", 50, "&event=workflow_run").then((list) => list.filter((run) => state(run) !== "skip" && run.conclusion !== "cancelled")),
   ]);
   if (!response.ok) throw new Error(`${INDEX} answered ${response.status}`);
-  const merge = await currentMerge(token, versionRuns);
-  const [lastPlugins, lastTray] = await Promise.all([lastMerge(token, versionRuns, merge, CANDIDATE), lastMerge(token, versionRuns, merge, TRAY_CANDIDATE)]);
-  const wave = waveOf(merge, releases);
-  const lastWave = waveOf(lastPlugins, releases);
-  await Promise.all([pulls(token, merge, wave), lastPlugins && pulls(token, lastPlugins, lastWave)]);
-  const fresh = started(merge.named(CANDIDATE)) || !lastPlugins;
-  const plugins = fresh ? pluginLane(qol, merge, wave, releases, now, false) : pluginLane(qol, lastPlugins, lastWave, releases, now, true);
+  const past = history(token, versionRuns);
+  const merge = await currentMerge(token, past, versionRuns);
+  const builder = (await past.find((item) => started(item.named(CANDIDATE)))) ?? merge;
+  const wave = waveOf(builder, releases);
+  const keeper = (await past.find(async (item) => item.named(CANDIDATE).length > 0 && started(await pushesOf(token, waveOf(item, releases))))) ?? builder;
+  const kept = waveOf(keeper, releases);
+  await Promise.all([pulls(token, builder, wave), pulls(token, keeper, kept)]);
+  const building = look(past.seen, merge, builder, finished(builder.named(CANDIDATE)), CANDIDATE);
+  const plugins = { ...pluginLane(qol, builder, wave, releases, now, building.past), stale: building.stale };
+  const storing = look(past.seen, merge, keeper, finished(await pushesOf(token, kept)), CANDIDATE);
   const [prs, queue, landed, versions, tray, store, published] = await Promise.all([
     pullRequests(token),
     mergeQueue(token, now),
     merged(token, now),
     versioning(merge, trays, now),
-    trayLane(token, merge, lastTray, trays, now),
-    registry(token, merge, wave, lastPlugins, lastWave, now),
-    index(token, merge, lastPlugins, Object.keys((await response.json()).plugins).length, signature.ok, now),
+    trayLane(token, past, merge, trays, now),
+    registry(token, keeper, kept, storing, now),
+    index(token, past, merge, Object.keys((await response.json()).plugins).length, signature.ok, now),
   ]);
   return {
     change: [prs, queue, landed, versions],
