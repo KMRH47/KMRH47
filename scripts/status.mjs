@@ -234,6 +234,29 @@ function waveOf(merge, releases) {
   }));
 }
 
+const LISTED = 4;
+const BUMP = /^chore\(plugins\): bump plugin versions/;
+const touched = new Map();
+
+async function pulls(token, merge, wave) {
+  if (wave.length > LISTED) return;
+  await Promise.all(
+    wave.map(async (item) => {
+      const key = `${merge.run.head_sha}/${item.id}`;
+      if (!touched.has(key)) touched.set(key, await rest(token, `${REPO}/commits?sha=${merge.run.head_sha}&path=plugins/${item.id.replace(/^qol-/, "")}&per_page=10`));
+      const subjects = touched.get(key).map((commit) => commit.commit.message.split("\n")[0]);
+      const pull = subjects.slice(0, (subjects.findIndex((line) => BUMP.test(line)) + 1 || subjects.length + 1) - 1).map((line) => line.match(PULL)?.[1]).find(Boolean);
+      item.pull = pull ? `#${pull}` : merge.name;
+    }),
+  );
+}
+
+const grouped = (wave, row) =>
+  [...new Set(wave.map((item) => item.pull))]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .flatMap((pull) => [{ name: pull, note: true }, ...wave.filter((item) => item.pull === pull).map(row)]);
+const versionOf = (item) => release(item.tag).replace(/^qol-/, "");
+
 function pluginLane(qol, merge, wave, releases, now, stale) {
   const byPlugin = new Map(wave.map((item) => [item.id, item]));
   const items = qol.plugins.map((plugin) => {
@@ -260,9 +283,10 @@ function pluginLane(qol, merge, wave, releases, now, stale) {
             ? `${release(wave[0].tag)} built`
             : `${plural(built, "new version")} built`;
   const rows = [];
-  if (built) rows.push({ name: built === 1 ? wave.find((item) => item.state === "ok").tag.replace(/-v.*/, "") : `${built} built`, state: "ok", time: took(wave.filter((item) => item.state === "ok").flatMap((item) => item.list.map(jobSpan)), now) });
+  if (wave.length && wave.length <= LISTED) rows.push(...grouped(wave, (item) => ({ name: versionOf(item), state: item.state, time: took(item.list.map(jobSpan), now) })));
+  else if (built) rows.push({ name: built === 1 ? wave.find((item) => item.state === "ok").tag.replace(/-v.*/, "") : `${built} built`, state: "ok", time: took(wave.filter((item) => item.state === "ok").flatMap((item) => item.list.map(jobSpan)), now) });
   if (building) rows.push({ name: `${building} building`, state: "run", time: took(wave.filter((item) => item.state === "run").flatMap((item) => item.list.map(jobSpan)), now) });
-  if (failed.length) rows.push({ name: `${listed(failed.map(name))} failed`, state: "bad", time: "" });
+  if (failed.length && wave.length > LISTED) rows.push({ name: `${listed(failed.map(name))} failed`, state: "bad", time: "" });
   if (merge.decided && items.length > wave.length) rows.push({ name: `${items.length - wave.length} had no change`, note: true });
   return { name: "plugins", fact, squares: items.map((item) => item.state), rows, stale };
 }
@@ -272,17 +296,22 @@ const pushesOf = async (token, wave) =>
     .flat()
     .filter((job) => job.name === "Publish registry artifact" && state(job) !== "skip");
 
+async function stored(token, wave, name, now) {
+  if (wave.length > LISTED) return [piece(name, await pushesOf(token, wave), now)];
+  const pushes = await Promise.all(wave.map((item) => pushesOf(token, [item])));
+  return grouped(wave, (item) => piece(versionOf(item), pushes[wave.indexOf(item)], now));
+}
+
 async function registry(token, merge, wave, last, lastWave, now) {
   const pushes = await pushesOf(token, wave);
   if (!started(pushes) && last) {
-    const before = await pushesOf(token, lastWave);
-    return { name: "registry", fact: `${last.name} stored ${plural(lastWave.length, "version")}`, rows: [piece(`${plural(lastWave.length, "version")} stored`, before, now)], stale: true };
+    return { name: "registry", fact: `${last.name} stored ${plural(lastWave.length, "version")}`, rows: await stored(token, lastWave, `${plural(lastWave.length, "version")} stored`, now), stale: true };
   }
   const auth = await (await fetch(`${REGISTRY}/token?scope=repository:${PACKAGE}:pull`)).json();
   const tags = await (await fetch(`${REGISTRY}/v2/${PACKAGE}/tags/list?n=10000`, { headers: { authorization: `Bearer ${auth.token}` } })).json();
   if (!Array.isArray(tags.tags)) throw new Error(`ghcr.io listed no tags for ${PACKAGE}`);
   const name = !merge.decided ? "new versions stored" : wave.length === 1 ? `${release(wave[0].tag)} stored` : `${plural(wave.length, "new version")} stored`;
-  return { name: "registry", fact: `${tags.tags.length} versions on ghcr.io`, rows: [piece(name, pushes, now)] };
+  return { name: "registry", fact: `${tags.tags.length} versions on ghcr.io`, rows: wave.length ? await stored(token, wave, name, now) : [piece(name, pushes, now)] };
 }
 
 const INDEX_STEP = { build: "list", sign: "sign", deploy: "publish" };
@@ -313,6 +342,7 @@ export async function buildBoard(token, qol, now = Date.now()) {
   const [lastPlugins, lastTray] = await Promise.all([lastMerge(token, versionRuns, merge, CANDIDATE), lastMerge(token, versionRuns, merge, TRAY_CANDIDATE)]);
   const wave = waveOf(merge, releases);
   const lastWave = waveOf(lastPlugins, releases);
+  await Promise.all([pulls(token, merge, wave), lastPlugins && pulls(token, lastPlugins, lastWave)]);
   const fresh = started(merge.named(CANDIDATE)) || !lastPlugins;
   const plugins = fresh ? pluginLane(qol, merge, wave, releases, now, false) : pluginLane(qol, lastPlugins, lastWave, releases, now, true);
   const [prs, queue, landed, versions, tray, store, published] = await Promise.all([
