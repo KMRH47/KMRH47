@@ -229,7 +229,7 @@ async function trayOf(token, merge, trays, now) {
     piece("GitHub release", github, now),
   ];
   const steps = [...pushes, ...github];
-  return { merge, run, list, version, builds, steps, rows, publish: { state: steps.length ? worst(steps.map(state)) : "wait" } };
+  return { merge, run, list, version, builds, steps, rows, publish: { state: github.length ? worst(steps.map(state)) : started(pushes) ? worst([...pushes.map(state), "wait"]) : "wait" } };
 }
 
 async function trayLane(token, past, current, trays, now) {
@@ -356,8 +356,11 @@ async function registry(token, merge, wave, shown, now) {
   const pushes = await pushesOf(token, wave);
   const name = !merge.decided ? "new versions stored" : wave.length === 1 ? `${release(wave[0].tag)} stored` : `${plural(wave.length, "new version")} stored`;
   const rows = wave.length ? await stored(token, wave, name, now) : [piece(name, pushes, now)];
+  const failed = pushes.filter((job) => state(job) === "bad").length;
   const fact = finished(pushes)
-    ? `${merge.name} stored ${plural(wave.length, "version")}`
+    ? failed
+      ? `${merge.name} failed to store ${plural(failed, "version")}`
+      : `${merge.name} stored ${plural(wave.length, "version")}`
     : started(pushes)
       ? `${merge.name} storing ${plural(wave.length, "version")}`
       : `${merge.name} waits to store ${plural(wave.length, "version")}`;
