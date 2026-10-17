@@ -4,6 +4,7 @@ const REPO = "repos/qol-tools/qol";
 const INDEX = "https://qol-tools.github.io/qol/plugins/index.json";
 const CANDIDATE = /^Candidate (qol-[a-z0-9-]+?-v\d+\.\d+\.\d+) \(/;
 const TRAY_CANDIDATE = /^Candidate qol-tray \(/;
+const TRAY_PUBLISH = /^Publish qol-tray \(/;
 const DISPATCH_SLACK = 2 * 60 * 1000;
 const JOB_PAGE = 50;
 const RANK = { ok: 0, wait: 1, run: 2, bad: 3 };
@@ -218,8 +219,14 @@ async function trayOf(token, merge, trays, now) {
   const run = merge.run && dispatchedBy(merge.run, trays)[0];
   const version = run?.display_title.match(/qol-tray-v(\d+\.\d+\.\d+)/)?.[1] ?? "the next version";
   const builds = list.sort((a, b) => platform(a.name) - platform(b.name)).map((job) => piece(PLATFORMS[platform(job.name)][0], [job], now));
-  const steps = (run ? await jobs(token, run) : []).filter((job) => job.name === "Create GitHub Release" || job.name.startsWith("Verify "));
-  return { merge, list, version, builds, steps, publish: piece("GitHub release", steps, now) };
+  const github = (run ? await jobs(token, run) : []).filter((job) => job.name === "Create GitHub Release" || job.name.startsWith("Verify "));
+  const pushes = merge.named(TRAY_PUBLISH);
+  const rows = [
+    ...PLATFORMS.map(([name, match]) => piece(name, pushes.filter((job) => match.test(job.name)), now)).filter((row, k) => pushes.some((job) => PLATFORMS[k][1].test(job.name))),
+    piece("GitHub release", github, now),
+  ];
+  const steps = [...pushes, ...github];
+  return { merge, list, version, builds, steps, rows, publish: { state: steps.length ? worst(steps.map(state)) : "wait" } };
 }
 
 async function trayLane(token, past, current, trays, now) {
@@ -237,8 +244,9 @@ async function trayLane(token, past, current, trays, now) {
   await past.find(async (merge) => {
     if (!merge.named(TRAY_CANDIDATE).length) return false;
     const candidate = merge === builder ? lane : await trayOf(token, merge, trays, now);
-    if (started(candidate.steps)) out = candidate;
-    return started(candidate.steps);
+    const reached = started(candidate.steps) || finished(candidate.list);
+    if (reached) out = candidate;
+    return reached;
   });
   const releasing = look(past, current, out.merge, out.publish.state === "ok" || out.publish.state === "bad", TRAY_CANDIDATE);
   const released = {
@@ -246,10 +254,10 @@ async function trayLane(token, past, current, trays, now) {
     fact: {
       ok: `${out.version} out since ${out.merge.name}`,
       run: `${out.merge.name} releasing ${out.version}`,
-      bad: `${out.merge.name}: ${out.version} did not release`,
-      wait: built(out) === "bad" ? `${out.merge.name}: ${out.version} did not build` : `${out.version} waits for ${out.merge.name}'s builds`,
+      bad: `${out.merge.name} failed to release ${out.version}`,
+      wait: built(out) === "bad" ? `${out.merge.name}: ${out.version} did not build` : built(out) === "ok" ? `${out.merge.name} waits to release ${out.version}` : `${out.version} waits for ${out.merge.name}'s builds`,
     }[out.publish.state],
-    rows: [out.publish],
+    rows: out.rows,
     stale: releasing,
   };
   return { tray, released };
@@ -338,13 +346,17 @@ async function registry(token, merge, wave, shown, now) {
   const pushes = await pushesOf(token, wave);
   const name = !merge.decided ? "new versions stored" : wave.length === 1 ? `${release(wave[0].tag)} stored` : `${plural(wave.length, "new version")} stored`;
   const rows = wave.length ? await stored(token, wave, name, now) : [piece(name, pushes, now)];
-  const fact = finished(pushes) ? `${merge.name} stored ${plural(wave.length, "version")}` : `${merge.name} storing ${plural(wave.length, "version")}`;
+  const fact = finished(pushes)
+    ? `${merge.name} stored ${plural(wave.length, "version")}`
+    : started(pushes)
+      ? `${merge.name} storing ${plural(wave.length, "version")}`
+      : `${merge.name} waits to store ${plural(wave.length, "version")}`;
   return { name: "registry", fact, rows, stale: shown };
 }
 
 const INDEX_STEP = { build: "list", sign: "sign", deploy: "publish" };
 
-async function index(token, past, current, count, signed, now) {
+async function index(token, past, current, keeper, stored, count, signed, now) {
   const recent = (await runs(token, "plugin-index.yml", 10)).filter((run) => state(run) !== "skip");
   let run = null;
   let list = [];
@@ -357,6 +369,9 @@ async function index(token, past, current, count, signed, now) {
   }
   const rows = Object.entries(INDEX_STEP).map(([job, step]) => piece(step, (run ? list : []).filter((entry) => entry.name.split(" ")[0].toLowerCase() === job), now));
   const owner = run ? ((await past.find((merge) => Date.parse(merge.run.run_started_at) <= Date.parse(run.created_at))) ?? current) : current;
+  if (stored && keeper.run && Date.parse(keeper.run.run_started_at) > Date.parse(owner.run?.run_started_at ?? 0)) {
+    return { name: "index", fact: `${keeper.name} waits to publish`, rows: Object.values(INDEX_STEP).map((step) => piece(step, [], now)) };
+  }
   const shown = look(past, current, owner, run?.status === "completed", CANDIDATE);
   const fact = `${owner.name} ${run?.status === "completed" ? "published" : "publishing"} ${count} plugins${signed ? "" : ", unsigned"}`;
   return { name: "index", fact, rows, stale: shown };
@@ -377,19 +392,20 @@ export async function buildBoard(token, qol, now = Date.now()) {
   const merge = await currentMerge(token, past, versionRuns);
   const builder = (await past.find((item) => started(item.named(CANDIDATE)))) ?? merge;
   const wave = waveOf(builder, releases);
-  const keeper = (await past.find(async (item) => item.named(CANDIDATE).length > 0 && started(await pushesOf(token, waveOf(item, releases))))) ?? builder;
+  const keeper = (await past.find(async (item) => item.named(CANDIDATE).length > 0 && (finished(item.named(CANDIDATE)) || started(await pushesOf(token, waveOf(item, releases)))))) ?? builder;
   const kept = waveOf(keeper, releases);
   await Promise.all([pulls(token, builder, wave), pulls(token, keeper, kept)]);
   const building = look(past, merge, builder, finished(builder.named(CANDIDATE)), CANDIDATE);
   const plugins = { ...pluginLane(qol, builder, wave, releases, now), stale: building };
-  const storing = look(past, merge, keeper, finished(await pushesOf(token, kept)), CANDIDATE);
+  const stored = finished(await pushesOf(token, kept));
+  const storing = look(past, merge, keeper, stored, CANDIDATE);
   const [prs, landed, versions, tray, store, published] = await Promise.all([
     pullRequests(token),
     merged(token, now),
     versioning(merge, past, trays, now),
     trayLane(token, past, merge, trays, now),
     registry(token, keeper, kept, storing, now),
-    index(token, past, merge, Object.keys((await response.json()).plugins).length, signature.ok, now),
+    index(token, past, merge, keeper, stored, Object.keys((await response.json()).plugins).length, signature.ok, now),
   ]);
   return {
     change: [prs, queue, landed, versions],
