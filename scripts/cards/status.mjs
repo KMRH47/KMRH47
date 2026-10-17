@@ -38,7 +38,10 @@ function row(doc, x, y, { name, time, state, note, still, width }) {
 }
 
 function body(doc, tile, inner) {
-  const parts = [doc.text("display", tile.name, 36, PADX, 44, QOL.ink), doc.text("medium", doc.fit("medium", tile.fact, 13, inner), 13, PADX + 2, 65, QOL.accentText)];
+  const parts = [
+    doc.text("display", tile.name, 36, PADX, 44, tile.stale ? QOL.muted : QOL.ink),
+    doc.text("medium", doc.fit("medium", tile.fact, 13, inner), 13, PADX + 2, 65, tile.stale ? QOL.muted : QOL.accentText),
+  ];
   let y = 74;
   if (tile.squares) {
     tile.squares.forEach((state, index) => parts.push(pip(state, PADX + 2 + (index % PER_ROW) * PITCH, y + 5 + Math.floor(index / PER_ROW) * PITCH)));
