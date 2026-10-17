@@ -81,3 +81,7 @@ export function statusTiles(board, document) {
     ...tileRow(board.tray, document),
   ]);
 }
+
+export function statusLinks(board) {
+  return Object.fromEntries([...board.change, ...board.plugins, ...board.tray].map((tile) => [tile.name.toLowerCase(), tile.link]));
+}
