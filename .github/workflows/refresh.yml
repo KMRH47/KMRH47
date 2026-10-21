@@ -8,6 +8,8 @@ on:
     branches: [main]
     paths:
       - "scripts/**"
+      - "fonts/**"
+      - "shots/**"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/refresh.yml"

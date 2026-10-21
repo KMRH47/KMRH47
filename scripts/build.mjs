@@ -1,14 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { bannerCard } from "./cards/banner.mjs";
+import { heroCard } from "./cards/hero.mjs";
+import { kcdCard } from "./cards/kcd.mjs";
 import { pluginsCard } from "./cards/plugins.mjs";
-import { projectCard, projectsHeader } from "./cards/project.mjs";
 import { screensCard } from "./cards/screens.mjs";
-import { kcdLoadout, kcdShowcase, qolShowcase } from "./cards/showcase.mjs";
-import { stackCard } from "./cards/stack.mjs";
+import { smallerCard } from "./cards/smaller.mjs";
 import { stars } from "./github.mjs";
 import { PROJECTS } from "./projects.mjs";
-import { STACK } from "./stack.mjs";
 import { readQol } from "./qol.mjs";
 import { dataUri } from "./svg.mjs";
 import { loadType } from "./type.mjs";
@@ -36,10 +34,15 @@ const shot = async (name) => dataUri("image/webp", await readFile(new URL(`../sh
 const qol = await readQol(values.qol);
 const type = await loadType(qol.fonts);
 const starCounts = await stars(token, PROJECTS.map((project) => project.repo));
-const frames = JSON.parse(await readFile(new URL("../shots/launcher/frames.json", import.meta.url), "utf8"));
-const facts = {
-  plugins: qol.plugins,
-  frames: await Promise.all(frames.map(async (frame) => ({ ...frame, uri: await shot(`launcher/${frame.file.replace(".webp", "")}`) }))),
+const kcd = {
+  fire: await shot("kcd2-fire"),
+  third: await shot("kcd2-tp"),
+  first: await shot("kcd2-fp"),
+  rifle: await shot("kcd2-m4a1-icon"),
+  magazine: await shot("kcd2-mag-icon"),
+  studio: await shot("forge-studio"),
+};
+const screens = {
   shots: {
     launcher: await shot("launcher"),
     settings: await Promise.all(SETTINGS.map(async ([file, title]) => ({ uri: await shot(`settings-${file}`), title }))),
@@ -47,21 +50,14 @@ const facts = {
 };
 
 const files = {
-  "banner.svg": bannerCard(facts, type.document()),
-  "qol.svg": qolShowcase(facts, type.document()),
-  "kcd2-loadout.svg": kcdLoadout(
-    { idle: await shot("kcd2-henry-idle"), rifle: await shot("kcd2-m4a1-icon"), cartridge: await shot("kcd2-556-icon") },
-    type.document(),
-  ),
-  "kcd2-m4a1.svg": kcdShowcase({ henry: await shot("kcd2-henry"), aim: await shot("kcd2-ingame") }, type.document()),
-  "plugins.svg": pluginsCard(facts, type.document()),
-  "screens.svg": screensCard(facts, type.document()),
-  "stack.svg": stackCard(STACK, type.document()),
-  "projects.svg": projectsHeader("smaller things", "tools I made along the way.", type.document()),
+  "hero-dark.svg": heroCard("dark", type.document()),
+  "hero-light.svg": heroCard("light", type.document()),
+  "qol.svg": pluginsCard(qol.plugins, type.document()),
+  "plugins.svg": pluginsCard(qol.plugins, type.document(), { heading: false }),
+  "kcd2-m4a1.svg": kcdCard(kcd, type.document()),
+  "smaller.svg": smallerCard(PROJECTS, starCounts, type.document()),
+  "screens.svg": screensCard(screens, type.document()),
 };
-for (const project of PROJECTS) {
-  files[`project-${project.repo.split("/")[1]}.svg`] = projectCard(project, starCounts.get(project.repo), qol.marks, type.document());
-}
 
 await mkdir(values.out, { recursive: true });
 for (const [name, markup] of Object.entries(files)) await writeFile(`${values.out}/${name}`, markup);
