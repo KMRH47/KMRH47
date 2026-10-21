@@ -1,64 +1,79 @@
-import { round } from "../type.mjs";
-import { QOL, discrete, qolWindow, svg, tile } from "../svg.mjs";
+import { QOL, baseline, box, lines, mark, svg } from "../svg.mjs";
+import { INNER, PAD, WIDTH, card, frame, header, title } from "./section.mjs";
 
-const WIDTH = 1200;
-const PAD = 48;
-const COLUMNS = 3;
-const GAP = 24;
-const ICON = 52;
-const STEP = 1.1;
-const NAME = 18;
-const DESCRIPTION = 15.5;
-const LEADING = 22;
-const PLATFORMS = [
-  ["linux", "Linux"],
-  ["macos", "macOS"],
+const GROUPS = [
+  ["desktop", "find, switch and capture", ["launcher", "alt-tab", "window-actions", "explorer", "clipboard", "shot"]],
+  ["input", "every key, click and voice", ["keyremap", "input", "controllers", "pointz", "voice"]],
+  ["hardware", "screens, sound and devices", ["monitor", "sound", "lights", "bluetooth"]],
+  ["system", "updates, apps, lock and look", ["update-manager", "removeapp", "session", "os-themes"]],
+  ["ai and dev", "for long coding sessions", ["cli-sessions", "memory"]],
 ];
+const WORDING = { "qol-clipboard": "Keep a history of everything you copy and search it from the launcher" };
+const OS = { linux: "linux", macos: "mac", windows: "win" };
+const TAGLINE = "A portable quality-of-life layer for any computer you sit down at.";
+const GAP = 12;
+const ICON = 34;
+const TEXT = ICON + 12;
 
-export function pluginsCard({ plugins }, doc) {
-  const columnWidth = (WIDTH - 2 * PAD - (COLUMNS - 1) * GAP) / COLUMNS;
-  const textWidth = columnWidth - ICON - 30;
-  const total = plugins.length * STEP;
-  const top = 154;
-  const cells = [];
-  let y = top;
-  for (let start = 0; start < plugins.length; start += COLUMNS) {
-    const row = plugins.slice(start, start + COLUMNS).map((plugin) => ({
-      ...plugin,
-      lines: doc.wrap("regular", plugin.description, DESCRIPTION, textWidth),
-    }));
-    const height = Math.max(ICON, 44 + (Math.max(...row.map((plugin) => plugin.lines.length)) - 1) * LEADING + 8);
-    row.forEach((plugin, column) => cells.push({ ...plugin, x: PAD + column * (columnWidth + GAP), y, height }));
-    y += height + 30;
+const key = (plugin) => plugin.id.replace(/^qol-/, "");
+
+function groups(plugins) {
+  const byKey = new Map(plugins.map((plugin) => [key(plugin), plugin]));
+  const grouped = new Set(GROUPS.flatMap(([, , keys]) => keys));
+  return [
+    ...GROUPS.map(([head, sub, keys]) => ({ head, sub, plugins: keys.filter((name) => byKey.has(name)).map((name) => byKey.get(name)) })),
+    { head: "more", sub: "new in qol", plugins: plugins.filter((plugin) => !grouped.has(key(plugin))) },
+  ].filter((group) => group.plugins.length);
+}
+
+function tile(doc, plugin, x, y, width) {
+  const words = (WORDING[plugin.id] ?? plugin.description).replace(/\.$/, "");
+  const description = lines(doc, "onest", 12.5, 17.5, words, x + TEXT, y + 19.8, QOL.secondary, { width: width - TEXT });
+  const nameBaseline = baseline(doc, "onestSemibold", 14, 16.8, y);
+  const platforms = plugin.platforms.length === 3 ? "" : plugin.platforms.map((name) => OS[name]).join(" · ");
+  const markup =
+    box(x, y, ICON, ICON, 9, QOL.accentText, { opacity: 0.14 }) +
+    mark(plugin.mark, x + 7, y + 7, 20, QOL.accentText, 3.2) +
+    doc.text("onestSemibold", plugin.name, 14, x + TEXT, nameBaseline, QOL.ink) +
+    (platforms ? doc.text("mono", platforms, 10.5, x + TEXT + doc.width("onestSemibold", plugin.name, 14) + 8, nameBaseline, QOL.muted) : "") +
+    description.markup;
+  return { markup, height: Math.max(ICON, 19.8 + description.height) };
+}
+
+function tiles(doc, plugins, x, y, width, columns) {
+  const column = (width - 24 * (columns - 1)) / columns;
+  let top = y;
+  let markup = "";
+  for (let start = 0; start < plugins.length; start += columns) {
+    const row = plugins.slice(start, start + columns).map((plugin, index) => tile(doc, plugin, x + index * (column + 24), top, column));
+    markup += row.map((entry) => entry.markup).join("");
+    top += Math.max(...row.map((entry) => entry.height)) + GAP;
   }
-  const height = y - 30 + 52;
-  const parts = [qolWindow(0, 0, WIDTH, height)];
-  const counts = PLATFORMS.map(([key, label]) => `${plugins.filter((plugin) => plugin.platforms.includes(key)).length} run on ${label}`);
-  parts.push(doc.text("display", "plugins", 44, PAD, 74, QOL.ink));
-  parts.push(doc.text("medium", `${plugins.length} installed`, 14, PAD + 2, 98, QOL.accentText));
-  parts.push(doc.text("regular", `each one is released and installed on its own. ${counts.join(" and ")}.`, 15, WIDTH - PAD, 98, QOL.muted, { anchor: "end" }));
-  parts.push(`<rect x="${PAD}" y="118" width="${WIDTH - 2 * PAD}" height="1" fill="${QOL.line}"/>`);
-  cells.forEach((cell, index) => {
-    const on = discrete(
-      "opacity",
-      [
-        [0, 0],
-        [index * STEP, 1],
-        [(index + 1) * STEP, 0],
-      ],
-      total,
-    );
-    parts.push(
-      `<g opacity="0">${on}<rect x="${round(cell.x - 14)}" y="${cell.y - 14}" width="${round(columnWidth + 22)}" height="${cell.height + 28}" rx="8" fill="${QOL.selection}" fill-opacity="0.6"/></g>`,
-    );
-    parts.push(tile(cell.mark, cell.x, cell.y, ICON, QOL.accent, { wash: 0, stroke: QOL.text, base: QOL.raised }));
-    parts.push(`<g opacity="0">${on}${tile(cell.mark, cell.x, cell.y, ICON, QOL.accent, { wash: 0.24, base: QOL.raised })}</g>`);
-    parts.push(doc.text("medium", cell.name, NAME, cell.x + ICON + 18, cell.y + 19, QOL.ink));
-    const platforms = PLATFORMS.filter(([key]) => cell.platforms.includes(key)).map(([, label]) => label);
-    parts.push(doc.text("medium", platforms.join(" · "), 13, cell.x + columnWidth - 8, cell.y + 18, QOL.dim, { anchor: "end" }));
-    cell.lines.forEach((line, lineIndex) => {
-      parts.push(doc.text("regular", line, DESCRIPTION, cell.x + ICON + 18, cell.y + 44 + lineIndex * LEADING, QOL.muted));
-    });
+  return { markup, height: top - GAP - y };
+}
+
+export function pluginsCard(plugins, doc, { heading = true } = {}) {
+  const head = heading ? title(doc, "qol", TAGLINE) : { markup: "", bottom: PAD };
+  const half = (INNER - GAP) / 2;
+  const cards = groups(plugins).map((group, index, all) => {
+    const wide = index === all.length - 1 && all.length % 2 === 1;
+    const width = wide ? INNER : half;
+    return { ...group, width, columns: wide ? 2 : 1, body: tiles(doc, group.plugins, 0, 0, width - 38, wide ? 2 : 1).height };
   });
-  return svg(WIDTH, height, `qol plugins: ${plugins.map((plugin) => plugin.name).join(", ")}`, doc, parts.join(""));
+  let top = head.bottom;
+  let markup = "";
+  for (let index = 0; index < cards.length; index += cards[index].width === INNER ? 1 : 2) {
+    const row = cards[index].width === INNER ? [cards[index]] : cards.slice(index, index + 2);
+    const height = header(32) + Math.max(...row.map((entry) => entry.body)) + 19;
+    row.forEach((entry, column) => {
+      const x = PAD + column * (half + GAP);
+      markup += card(doc, x, top, entry.width, height, entry.head, entry.sub, 32, 32).markup;
+      markup += tiles(doc, entry.plugins, x + 19, top + header(32), entry.width - 38, entry.columns).markup;
+    });
+    top += height + GAP;
+  }
+  const height = Math.ceil(top - GAP + PAD);
+  const panel = frame("qol-wash", height, "#1c1d24", "#111214");
+  const label = `${heading ? `qol: ${TAGLINE} ` : ""}Plugins: ${plugins.map((plugin) => plugin.name).join(", ")}`;
+  return svg(WIDTH, height, label, doc, panel.body + head.markup + markup, panel.defs);
 }

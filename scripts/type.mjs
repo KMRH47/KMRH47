@@ -11,6 +11,17 @@ const FACES = {
   display: { file: "SairaSemiCondensed-SemiBold.ttf", id: "d" },
 };
 
+const OWN_FACES = {
+  onest: { file: "Onest-Regular.ttf", id: "a" },
+  onestSemibold: { file: "Onest-SemiBold.ttf", id: "b" },
+  frauncesTitle: { file: "Fraunces-Bold-54.ttf", id: "f" },
+  frauncesBold: { file: "Fraunces-Bold-16.ttf", id: "g" },
+  frauncesSemibold: { file: "Fraunces-SemiBold-22.ttf", id: "h" },
+  frauncesItalic: { file: "Fraunces-SemiBoldItalic-14.ttf", id: "i" },
+};
+
+const ALL_FACES = { ...FACES, ...OWN_FACES };
+
 export const round = (value) => Math.round(value * 100) / 100;
 
 function pathData(commands) {
@@ -33,12 +44,15 @@ function pathData(commands) {
 
 export const FONT_FILES = Object.fromEntries(Object.entries(FACES).map(([face, { file }]) => [face, file]));
 
+async function fontBuffer(file) {
+  const bytes = await readFile(file);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
 export async function loadType(dir) {
   const buffers = {};
-  for (const [face, file] of Object.entries(FONT_FILES)) {
-    const bytes = await readFile(path.join(dir, file));
-    buffers[face] = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  }
+  for (const [face, file] of Object.entries(FONT_FILES)) buffers[face] = await fontBuffer(path.join(dir, file));
+  for (const [face, { file }] of Object.entries(OWN_FACES)) buffers[face] = await fontBuffer(new URL(`../fonts/${file}`, import.meta.url));
   return typeFromFonts(buffers);
 }
 
@@ -59,6 +73,16 @@ export function typeFromFonts(buffers) {
 
   const measure = {
     width,
+    metrics(face, size) {
+      const font = fonts[face];
+      const os2 = font.tables.os2;
+      const typo = os2 && os2.fsSelection & 128;
+      const scale = size / font.unitsPerEm;
+      return {
+        ascent: Math.round((typo ? os2.sTypoAscender : font.ascender) * scale),
+        descent: Math.round(-(typo ? os2.sTypoDescender : font.descender) * scale),
+      };
+    },
     edges(face, text, size, tracking = 0) {
       const scale = size / fonts[face].unitsPerEm;
       return glyphRun(face, text).map(({ x, advance }, index) => (x + advance) * scale + tracking * index);
@@ -91,7 +115,7 @@ export function typeFromFonts(buffers) {
       const glyphs = new Map();
       return {
         ...measure,
-        text(face, text, size, x, y, fill, { anchor = "start", tracking = 0, opacity } = {}) {
+        text(face, text, size, x, y, fill, { anchor = "start", tracking = 0, opacity, bold } = {}) {
           const em = fonts[face].unitsPerEm;
           const scale = size / em;
           const total = width(face, text, size, tracking);
@@ -101,12 +125,13 @@ export function typeFromFonts(buffers) {
             if (glyph.index === 0) throw new Error(`${face} has no glyph for a character in ${JSON.stringify(text)}`);
             const commands = glyph.getPath(0, 0, em).commands;
             if (commands.length === 0) return;
-            const id = `${FACES[face].id}${glyph.index}`;
+            const id = `${ALL_FACES[face].id}${glyph.index}`;
             if (!glyphs.has(id)) glyphs.set(id, pathData(commands));
             uses += `<use href="#${id}" x="${round(glyphX + (tracking * index) / scale)}"/>`;
           });
           const fade = opacity === undefined ? "" : ` opacity="${opacity}"`;
-          return `<g fill="${fill}"${fade} transform="translate(${round(x - shift)} ${round(y)}) scale(${round(scale * 10000) / 10000})">${uses}</g>`;
+          const heavy = bold ? ` stroke="${fill}" stroke-width="${round(bold / scale)}" stroke-linejoin="round"` : "";
+          return `<g fill="${fill}"${fade}${heavy} transform="translate(${round(x - shift)} ${round(y)}) scale(${round(scale * 10000) / 10000})">${uses}</g>`;
         },
         defs() {
           return [...glyphs].map(([id, d]) => `<path id="${id}" d="${d}"/>`).join("");
