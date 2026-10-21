@@ -1,6 +1,6 @@
-import { baseline, box, lines, svg } from "../svg.mjs";
+import { baseline, box, lines } from "../svg.mjs";
 import { round } from "../type.mjs";
-import { INNER, PAD, WIDTH, frame } from "./section.mjs";
+import { INNER, PAD, SPACE, WIDTH, frame, panel } from "./section.mjs";
 
 const INK = "#f1e6cf";
 const SECONDARY = "#c9b896";
@@ -128,6 +128,6 @@ export function kcdCard(shots, doc) {
   }
 
   const height = Math.ceil(Math.max(forge + 38 + (studioWidth * 396) / 812, row) + PAD);
-  const panel = frame("kcd-wash", height, "#2a2016", "#17120d");
-  return svg(WIDTH, height, `kcd2-m4a1, a mod for Kingdom Come: Deliverance II. ${TAGLINE}`, doc, panel.body + parts.join(""), panel.defs + defs.join(""));
+  const wash = frame("kcd-wash", height, "#2a2016", "#17120d");
+  return panel(height, `kcd2-m4a1, a mod for Kingdom Come: Deliverance II. ${TAGLINE}`, doc, wash.body + parts.join(""), wash.defs + defs.join(""), SPACE);
 }

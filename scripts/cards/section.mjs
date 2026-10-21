@@ -1,14 +1,19 @@
-import { QOL, baseline, box, lines, wash } from "../svg.mjs";
+import { QOL, baseline, box, lines, svg, wash } from "../svg.mjs";
 
 export const WIDTH = 831;
 export const PAD = 40;
 export const INNER = WIDTH - 2 * PAD;
+export const SPACE = 22;
 
 export const heavy = (size) => size * (1 / 48 + ((Math.min(Math.max(size, 9), 36) - 9) / 27) * (1 / 64 - 1 / 48));
 export const header = (line) => 17 + line + 6 + 15 + 12;
 
 export function frame(id, height, from, to) {
   return { defs: wash(id, WIDTH, height, from, to), body: box(0, 0, WIDTH, height, 12, `url(#${id})`) };
+}
+
+export function panel(height, label, doc, body, defs, space) {
+  return svg(WIDTH, height + space, label, doc, space ? `<g transform="translate(0 ${space})">${body}</g>` : body, defs);
 }
 
 export function title(doc, name, tagline) {

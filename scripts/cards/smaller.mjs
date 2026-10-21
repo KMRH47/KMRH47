@@ -1,6 +1,6 @@
-import { QOL, baseline, box, lines, svg } from "../svg.mjs";
+import { QOL, baseline, lines } from "../svg.mjs";
 import { round } from "../type.mjs";
-import { INNER, PAD, WIDTH, card, frame, header, title } from "./section.mjs";
+import { INNER, PAD, SPACE, card, frame, header, panel, title } from "./section.mjs";
 
 const TAGLINE = "Each one fixed one annoyance, and most still run every day.";
 const STAR = "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z";
@@ -56,7 +56,7 @@ export function smallerCard(projects, stars, doc) {
     top += height + GAP;
   }
   const height = Math.ceil(top - GAP + PAD);
-  const panel = frame("smaller-wash", height, "#1c1d24", "#111214");
+  const wash = frame("smaller-wash", height, "#1c1d24", "#111214");
   const label = `smaller things: ${projects.map((project) => `${project.repo.split("/")[1]}, ${project.text}`).join(" ")}`;
-  return svg(WIDTH, height, label, doc, panel.body + head.markup + markup, panel.defs);
+  return panel(height, label, doc, wash.body + head.markup + markup, wash.defs, SPACE);
 }

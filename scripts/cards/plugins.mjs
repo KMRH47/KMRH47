@@ -1,5 +1,5 @@
-import { QOL, baseline, box, lines, mark, svg } from "../svg.mjs";
-import { INNER, PAD, WIDTH, card, frame, header, title } from "./section.mjs";
+import { QOL, baseline, box, lines, mark } from "../svg.mjs";
+import { INNER, PAD, SPACE, card, frame, header, panel, title } from "./section.mjs";
 
 const GROUPS = [
   ["desktop", "find, switch and capture", ["launcher", "alt-tab", "window-actions", "explorer", "clipboard", "shot"]],
@@ -73,7 +73,7 @@ export function pluginsCard(plugins, doc, { heading = true } = {}) {
     top += height + GAP;
   }
   const height = Math.ceil(top - GAP + PAD);
-  const panel = frame("qol-wash", height, "#1c1d24", "#111214");
+  const wash = frame("qol-wash", height, "#1c1d24", "#111214");
   const label = `${heading ? `qol: ${TAGLINE} ` : ""}Plugins: ${plugins.map((plugin) => plugin.name).join(", ")}`;
-  return svg(WIDTH, height, label, doc, panel.body + head.markup + markup, panel.defs);
+  return panel(height, label, doc, wash.body + head.markup + markup, wash.defs, heading ? SPACE : 0);
 }
