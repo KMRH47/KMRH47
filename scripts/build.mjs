@@ -35,8 +35,8 @@ const qol = await readQol(values.qol);
 const type = await loadType(qol.fonts);
 const starCounts = await stars(token, PROJECTS.map((project) => project.repo));
 const kcd = {
-  fire: await shot("kcd2-fire"),
   third: await shot("kcd2-tp"),
+  inventory: await shot("kcd2-inventory"),
   first: await shot("kcd2-fp"),
   rifle: await shot("kcd2-m4a1-icon"),
   magazine: await shot("kcd2-mag-icon"),

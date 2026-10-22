@@ -74,12 +74,11 @@ export function kcdCard(shots, doc) {
   parts.push(box(PAD, PAD + 124.4, INNER, 1, 0, GOLD, { opacity: 0.22 }));
 
   const collage = PAD + 141.4;
-  const wide = ((INNER - 8) * 1.55) / 2.55;
-  const narrow = INNER - 8 - wide;
+  const column = (INNER - 16) / 3;
   for (const [id, uri, x, y, width, height] of [
-    ["kcd-fire", shots.fire, PAD, collage, wide, 408],
-    ["kcd-third", shots.third, PAD + wide + 8, collage, narrow, 200],
-    ["kcd-first", shots.first, PAD + wide + 8, collage + 208, narrow, 200],
+    ["kcd-third", shots.third, PAD, collage, column, 408],
+    ["kcd-inventory", shots.inventory, PAD + column + 8, collage, column, 408],
+    ["kcd-first", shots.first, PAD + 2 * (column + 8), collage, column, 408],
   ]) {
     const shot = figure(id, uri, x, y, width, height);
     defs.push(shot.defs);
