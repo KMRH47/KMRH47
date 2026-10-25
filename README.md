@@ -7,8 +7,6 @@
 
 <a href="https://github.com/qol-tools/qol"><img src="assets/qol.svg" width="100%" alt="qol: a portable quality-of-life layer for any computer you sit down at. Its plugins, grouped into desktop, input, hardware, system, and ai and dev."></a>
 
-<img src="assets/kcd2-m4a1.svg" width="100%" alt="kcd2-m4a1: an M4A1 for Kingdom Come: Deliverance II, with its rifle and magazine, how it reloads, and the kcd2-forge CLI it is built with.">
-
 <img src="assets/smaller.svg" width="100%" alt="Smaller things: qol-skills, pointz, bt-quickie, windows-like-remap and fast-youtrack.">
 
 <p align="center"><a href="https://github.com/qol-tools/qol-skills">qol-skills</a> · <a href="https://github.com/qol-tools/pointz">pointz</a> · <a href="https://github.com/KMRH47/bt-quickie">bt-quickie</a> · <a href="https://github.com/KMRH47/windows-like-remap">windows-like-remap</a> · <a href="https://github.com/KMRH47/fast-youtrack">fast-youtrack</a></p>

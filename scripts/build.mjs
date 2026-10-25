@@ -1,7 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { heroCard } from "./cards/hero.mjs";
-import { kcdCard } from "./cards/kcd.mjs";
 import { pluginsCard } from "./cards/plugins.mjs";
 import { screensCard } from "./cards/screens.mjs";
 import { smallerCard } from "./cards/smaller.mjs";
@@ -34,14 +33,6 @@ const shot = async (name) => dataUri("image/webp", await readFile(new URL(`../sh
 const qol = await readQol(values.qol);
 const type = await loadType(qol.fonts);
 const starCounts = await stars(token, PROJECTS.map((project) => project.repo));
-const kcd = {
-  third: await shot("kcd2-tp"),
-  inventory: await shot("kcd2-inventory"),
-  first: await shot("kcd2-fp"),
-  rifle: await shot("kcd2-m4a1-icon"),
-  magazine: await shot("kcd2-mag-icon"),
-  studio: await shot("forge-studio"),
-};
 const screens = {
   shots: {
     launcher: await shot("launcher"),
@@ -54,7 +45,6 @@ const files = {
   "hero-light.svg": heroCard("light", type.document()),
   "qol.svg": pluginsCard(qol.plugins, type.document()),
   "plugins.svg": pluginsCard(qol.plugins, type.document(), { heading: false }),
-  "kcd2-m4a1.svg": kcdCard(kcd, type.document()),
   "smaller.svg": smallerCard(PROJECTS, starCounts, type.document()),
   "screens.svg": screensCard(screens, type.document()),
 };

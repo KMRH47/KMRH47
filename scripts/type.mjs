@@ -7,14 +7,12 @@ const FACES = {
   medium: { file: "IBMPlexSans-Medium.ttf", id: "m" },
   semibold: { file: "IBMPlexSans-SemiBold.ttf", id: "s" },
   mono: { file: "IBMPlexMono-Regular.ttf", id: "o" },
-  monoMedium: { file: "IBMPlexMono-Medium.ttf", id: "n" },
   display: { file: "SairaSemiCondensed-SemiBold.ttf", id: "d" },
 };
 
 const OWN_FACES = {
   onest: { file: "Onest-Regular.ttf", id: "a" },
   onestSemibold: { file: "Onest-SemiBold.ttf", id: "b" },
-  frauncesTitle: { file: "Fraunces-Bold-54.ttf", id: "f" },
   frauncesBold: { file: "Fraunces-Bold-16.ttf", id: "g" },
   frauncesSemibold: { file: "Fraunces-SemiBold-22.ttf", id: "h" },
   frauncesItalic: { file: "Fraunces-SemiBoldItalic-14.ttf", id: "i" },
