@@ -5,6 +5,13 @@ export const PROJECTS = [
     text: "A full auto M4A1 for a game set in 1403, with its own model, sounds and reloads, and a native plugin that drives it.",
     language: "C",
     span: 3,
+    cover: {
+      shot: "henry-cover",
+      kicker: "a mod for kingdom come: deliverance ii",
+      title: "Henry's Come to See Us!",
+      line: "A full auto M4A1 for a game set in 1403.",
+      chips: ["Nexus Mods", "C · Lua"],
+    },
   },
   {
     repo: "qol-tools/qol-skills",

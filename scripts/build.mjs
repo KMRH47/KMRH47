@@ -33,6 +33,9 @@ const shot = async (name) => dataUri("image/webp", await readFile(new URL(`../sh
 const qol = await readQol(values.qol);
 const type = await loadType(qol.fonts);
 const starCounts = await stars(token, PROJECTS.map((project) => project.repo));
+const covers = Object.fromEntries(
+  await Promise.all(PROJECTS.filter((project) => project.cover).map(async ({ cover }) => [cover.shot, await shot(cover.shot)])),
+);
 const screens = {
   shots: {
     launcher: await shot("launcher"),
@@ -45,7 +48,7 @@ const files = {
   "hero-light.svg": heroCard("light", type.document()),
   "qol.svg": pluginsCard(qol.plugins, type.document()),
   "plugins.svg": pluginsCard(qol.plugins, type.document(), { heading: false }),
-  "smaller.svg": smallerCard(PROJECTS, starCounts, type.document()),
+  "smaller.svg": smallerCard(PROJECTS, starCounts, covers, type.document()),
   "screens.svg": screensCard(screens, type.document()),
 };
 
