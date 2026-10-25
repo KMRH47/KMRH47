@@ -16,20 +16,20 @@ export const PROJECTS = [
   {
     repo: "qol-tools/qol-skills",
     label: "Agent skills",
-    text: "Claude Code and Codex skills that teach coding agents how qol is built, tested and released.",
+    text: "Claude Code and Codex skills that teach coding agents how qol is built.",
     language: "JavaScript",
     span: 2,
   },
   {
     repo: "qol-tools/pointz",
     label: "Android · iOS",
-    text: "Flutter app for controlling your PC from your phone. It pairs with the PointZerver plugin.",
+    text: "Control your PC from your phone.",
     language: "Dart",
   },
   {
     repo: "KMRH47/bt-quickie",
     label: "Windows",
-    text: "Quick Bluetooth device access from the Windows system tray.",
+    text: "Bluetooth devices, one click from the tray.",
     language: "C#",
   },
   {

@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import { heroCard } from "./cards/hero.mjs";
 import { pluginsCard } from "./cards/plugins.mjs";
 import { screensCard } from "./cards/screens.mjs";
-import { smallerCard } from "./cards/smaller.mjs";
+import { smallerSlices } from "./cards/smaller.mjs";
 import { stars } from "./github.mjs";
 import { PROJECTS } from "./projects.mjs";
 import { readQol } from "./qol.mjs";
@@ -48,7 +48,7 @@ const files = {
   "hero-light.svg": heroCard("light", type.document()),
   "qol.svg": pluginsCard(qol.plugins, type.document()),
   "plugins.svg": pluginsCard(qol.plugins, type.document(), { heading: false }),
-  "smaller.svg": smallerCard(PROJECTS, starCounts, covers, type.document()),
+  ...smallerSlices(PROJECTS, starCounts, covers, type),
   "screens.svg": screensCard(screens, type.document()),
 };
 
