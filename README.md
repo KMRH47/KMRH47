@@ -7,6 +7,6 @@
 
 <a href="https://github.com/qol-tools/qol"><img src="assets/qol.svg" width="100%" alt="qol: a portable quality-of-life layer for any computer you sit down at. Its plugins, grouped into desktop, input, hardware, system, and ai and dev."></a>
 
-<img src="assets/smaller.svg" width="100%" alt="Smaller things: qol-skills, pointz, bt-quickie, windows-like-remap and fast-youtrack.">
+<img src="assets/smaller.svg" width="100%" alt="Smaller things: henrys-come-to-see-us, qol-skills, pointz, bt-quickie, windows-like-remap and fast-youtrack.">
 
-<p align="center"><a href="https://github.com/qol-tools/qol-skills">qol-skills</a> · <a href="https://github.com/qol-tools/pointz">pointz</a> · <a href="https://github.com/KMRH47/bt-quickie">bt-quickie</a> · <a href="https://github.com/KMRH47/windows-like-remap">windows-like-remap</a> · <a href="https://github.com/KMRH47/fast-youtrack">fast-youtrack</a></p>
+<p align="center"><a href="https://github.com/KMRH47/henrys-come-to-see-us">henrys-come-to-see-us</a> · <a href="https://github.com/qol-tools/qol-skills">qol-skills</a> · <a href="https://github.com/qol-tools/pointz">pointz</a> · <a href="https://github.com/KMRH47/bt-quickie">bt-quickie</a> · <a href="https://github.com/KMRH47/windows-like-remap">windows-like-remap</a> · <a href="https://github.com/KMRH47/fast-youtrack">fast-youtrack</a></p>

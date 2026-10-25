@@ -1,9 +1,17 @@
 export const PROJECTS = [
   {
+    repo: "KMRH47/henrys-come-to-see-us",
+    label: "Kingdom Come: Deliverance II · Nexus Mods",
+    text: "A full auto M4A1 for a game set in 1403, with its own model, sounds and reloads, and a native plugin that drives it.",
+    language: "C",
+    span: 3,
+  },
+  {
     repo: "qol-tools/qol-skills",
     label: "Agent skills",
     text: "Claude Code and Codex skills that teach coding agents how qol is built, tested and released.",
     language: "JavaScript",
+    span: 2,
   },
   {
     repo: "qol-tools/pointz",

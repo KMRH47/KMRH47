@@ -2,7 +2,7 @@ import { QOL, baseline, lines } from "../svg.mjs";
 import { round } from "../type.mjs";
 import { INNER, PAD, SPACE, card, frame, header, panel, title } from "./section.mjs";
 
-const TAGLINE = "Each one fixed one annoyance, and most still run every day.";
+const TAGLINE = "Each one scratched an itch, and most still run every day.";
 const STAR = "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z";
 const COLUMNS = 3;
 const GAP = 12;
@@ -15,8 +15,8 @@ function rows(projects) {
   const placed = [];
   let row = [];
   let used = 0;
-  projects.forEach((project, index) => {
-    const span = index === 0 ? 2 : 1;
+  projects.forEach((project) => {
+    const span = project.span ?? 1;
     if (used + span > COLUMNS) {
       placed.push(row);
       row = [];
