@@ -3,7 +3,7 @@ import { round } from "../type.mjs";
 import { INNER, PAD, SPACE, WIDTH, card, frame, header, title } from "./section.mjs";
 import { TILES, star } from "./tiles.mjs";
 
-const TAGLINE = "Each one scratched an itch, and most still run every day.";
+const TAGLINE = "Each one scratched an itch.";
 const COLUMNS = 3;
 const GAP = 12;
 const COVER_HEIGHT = 210;
