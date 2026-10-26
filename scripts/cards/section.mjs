@@ -18,7 +18,9 @@ export function panel(height, label, doc, body, defs, space) {
 
 export function title(doc, name, tagline) {
   const heading = lines(doc, "display", 34, 37.4, name, WIDTH / 2, PAD, QOL.ink, { anchor: "middle", bold: heavy(34) });
-  const caption = lines(doc, "onest", 15, 21, tagline, WIDTH / 2, PAD + heading.height + 8, QOL.ink, { anchor: "middle" });
+  const caption = tagline
+    ? lines(doc, "onest", 15, 21, tagline, WIDTH / 2, PAD + heading.height + 8, QOL.ink, { anchor: "middle" })
+    : { markup: "", height: -8 };
   const rule = PAD + heading.height + 8 + caption.height + 16;
   return { markup: heading.markup + caption.markup + box(PAD, rule, INNER, 1, 0, QOL.rule), bottom: rule + 17 };
 }

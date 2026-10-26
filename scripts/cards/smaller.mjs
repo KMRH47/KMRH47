@@ -3,7 +3,6 @@ import { round } from "../type.mjs";
 import { INNER, PAD, SPACE, WIDTH, card, frame, header, title } from "./section.mjs";
 import { TILES, star } from "./tiles.mjs";
 
-const TAGLINE = "Each one scratched an itch.";
 const COLUMNS = 3;
 const GAP = 12;
 const COVER_HEIGHT = 210;
@@ -62,7 +61,7 @@ const repoName = (project) => project.repo.split("/")[1];
 
 function layout(projects, type) {
   const column = (INNER - GAP * (COLUMNS - 1)) / COLUMNS;
-  const headBottom = title(type.document(), "smaller things", TAGLINE).bottom;
+  const headBottom = title(type.document(), "smaller things", "").bottom;
   const tiles = [];
   let top = headBottom;
   for (const row of rows(projects)) {
@@ -117,9 +116,9 @@ export function smallerSlices(projects, stars, covers, type) {
   const wash = frame("smaller-wash", height, "#1c1d24", "#111214");
   const lastTop = Math.max(...tiles.map((tile) => tile.y));
   const headDoc = type.document();
-  const head = title(headDoc, "smaller things", TAGLINE);
+  const head = title(headDoc, "smaller things", "");
   const files = {
-    "smaller-head.svg": slice(headDoc, { x: 0, y: 0, width: WIDTH, height: headBottom - GAP / 2 + SPACE }, `smaller things. ${TAGLINE}`, wash.body + head.markup, wash.defs),
+    "smaller-head.svg": slice(headDoc, { x: 0, y: 0, width: WIDTH, height: headBottom - GAP / 2 + SPACE }, "smaller things", wash.body + head.markup, wash.defs),
   };
   for (const tile of tiles) {
     const doc = type.document();
