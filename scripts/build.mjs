@@ -4,6 +4,7 @@ import { heroCard } from "./cards/hero.mjs";
 import { pluginsCard } from "./cards/plugins.mjs";
 import { screensCard } from "./cards/screens.mjs";
 import { smallerSlices } from "./cards/smaller.mjs";
+import { windowCard } from "./cards/window.mjs";
 import { stars } from "./github.mjs";
 import { PROJECTS } from "./projects.mjs";
 import { readQol } from "./qol.mjs";
@@ -46,7 +47,7 @@ const screens = {
 const files = {
   "hero-dark.svg": heroCard("dark", type.document()),
   "hero-light.svg": heroCard("light", type.document()),
-  "qol.svg": pluginsCard(qol.plugins, type.document()),
+  "qol.svg": windowCard(qol.plugins, type.document(), await shot("window-display")),
   "plugins.svg": pluginsCard(qol.plugins, type.document(), { heading: false }),
   ...smallerSlices(PROJECTS, starCounts, covers, type),
   "screens.svg": screensCard(screens, type.document()),

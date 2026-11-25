@@ -27,8 +27,14 @@ export function svg(width, height, label, doc, body, defs = "") {
   );
 }
 
-export function mark(body, x, y, size, stroke, width = 4) {
-  return `<g transform="translate(${round(x)} ${round(y)}) scale(${round((size / 48) * 10000) / 10000})" fill="none" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round">${body}</g>`;
+let markCount = 0;
+
+export function mark(drawing, x, y, size, color) {
+  const id = `mk${markCount++}`;
+  return drawing
+    .replace(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" width="16" height="16"/, `<svg x="${round(x)}" y="${round(y)}" width="${size}" height="${size}" color="${color}"`)
+    .replaceAll('id="h"', `id="${id}"`)
+    .replaceAll("url(#h)", `url(#${id})`);
 }
 
 export function baseline(doc, face, size, lineHeight, top) {

@@ -1,14 +1,14 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
-function markBodies(source) {
-  const names = new Map(
-    [...source.matchAll(/Self::(\w+) => "([a-z-]+)"/g)].map(([, variant, name]) => [variant, name]),
+function markDrawings(names, drawings) {
+  const byVariant = new Map(
+    [...names.matchAll(/Self::(\w+) => "([a-z-]+)"/g)].map(([, variant, name]) => [variant, name]),
   );
   return new Map(
-    [...source.matchAll(/Self::(\w+) => \{?\s*r#"([\s\S]*?)"#/g)].map(([, variant, body]) => [
-      names.get(variant),
-      body,
+    [...drawings.matchAll(/Mark::(\w+) => \{?\s*r##"([\s\S]*?)"##/g)].map(([, variant, drawing]) => [
+      byVariant.get(variant),
+      drawing,
     ]),
   );
 }
@@ -42,7 +42,10 @@ export function pluginSection(toml) {
 }
 
 export async function readQol(root) {
-  const marks = markBodies(await readFile(path.join(root, "libs/theme/src/marks.rs"), "utf8"));
+  const marks = markDrawings(
+    await readFile(path.join(root, "libs/theme/src/marks/mod.rs"), "utf8"),
+    await readFile(path.join(root, "libs/theme/src/marks/solid.rs"), "utf8"),
+  );
   const entries = await readdir(path.join(root, "plugins"), { withFileTypes: true });
   const plugins = [];
   for (const entry of entries) {
